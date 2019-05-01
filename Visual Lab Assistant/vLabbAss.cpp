@@ -22,7 +22,7 @@ using namespace cv;
 
 const int fps = 20;
 const float calibrationSquareDimension = 0.024f;
-const float arucoSquareDimension = 0.02f;
+const float arucoSquareDimension = 0.01f;
 const Size chessboardDimensions = Size(9, 6);
 
 
@@ -37,13 +37,105 @@ void writeTextOnMarker(Mat& outputFrame, Mat& cameraMatrix, Mat& distanceCoeffic
 }
 
 
+void distanceToCamera(Mat& inOutFrame, Mat& cameraMatrix, Mat& distanceCoefficients)
+{
+
+}
+
+//Testing using this for the object points. 
+vector<Point3d> Generate3DPoints()
+{
+	std::vector<cv::Point3d> points;
+
+	double x, y, z;
+
+	x = .5; y = .5; z = -.5;
+	points.push_back(cv::Point3d(x, y, z));
+
+	x = .5; y = .5; z = .5;
+	points.push_back(cv::Point3d(x, y, z));
+
+	x = -.5; y = .5; z = .5;
+	points.push_back(cv::Point3d(x, y, z));
+
+	x = -.5; y = .5; z = -.5;
+	points.push_back(cv::Point3d(x, y, z));
+
+	x = .5; y = -.5; z = -.5;
+	points.push_back(cv::Point3d(x, y, z));
+
+	x = -.5; y = -.5; z = -.5;
+	points.push_back(cv::Point3d(x, y, z));
+
+	x = -.5; y = -.5; z = .5;
+	points.push_back(cv::Point3d(x, y, z));
+
+	for (unsigned int i = 0; i < points.size(); ++i)
+	{
+		std::cout << points[i] << std::endl << std::endl;
+	}
+
+	return points;
+}
+
+vector<Point3d> getAruco3dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
+{
+	//https://stackoverflow.com/questions/46363618/aruco-markers-with-opencv-get-the-3d-corner-coordinates
+
+	//Compute rot_mat
+	Mat rotMat;
+	Rodrigues(rvec, rotMat);
+	//Transpose of rot_mat for easy column extraction.
+	Mat rotMatTpose = rotMat.t();
+
+	//Convert tvec to point
+
+	Point3f tvec_3d(tvec[0], tvec[1], tvec[2]);
+
+	//return vector:
+
+	vector<Point3d> ret(4, tvec_3d);
+	//TODO get the proper coordinates. Also, why is it 4 coords in the example from SO?
+
+	return ret;
+
+}
+
+Point3d getAruco2dCenterCoords(vector<Point2d> corners, double side, Vec3d rvec, Vec3d tvec)
+{
+	Mat rotMat;
+	Rodrigues(rvec, rotMat);
+	//Transpose of rotMat for easy column extraction.
+	Mat rotMatTpose = rotMat.t();
+
+	double* tmp = rotMatTpose.ptr<double>(0);
+	Point3d camWorldO(tmp[0], tmp[1], tmp[2]); // points of the aruco marker in the frame
+	Point3d tvec3D(tvec[0], tvec[1], tvec[2]);
+
+	camWorldO += tvec3D;
+	cout << camWorldO.x << " " << camWorldO.y << endl;
+
+	return camWorldO;
+
+
+}
+
+void showCoordsAtPos(Mat& frame, /*String string,*/ Point position, Vec3d tvec)
+{
+	ostringstream oCoordsString;
+	oCoordsString << "MARKER Position x=" << tvec[0] << "y=" << tvec[1] << "z=" << tvec[2];
+	string coordsString = oCoordsString.str();
+	putText(frame, coordsString, position, FONT_HERSHEY_COMPLEX_SMALL, 0.5, Scalar(0, 255, 26));
+}
+
+
 int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimensions)
 {
 	Mat frame;
-	vector<Point3d> objPoints; // Perhaps this thing is the problem since it's empty. This probably should be the markers. 
-	vector<Point2d> imgPoints;
-	/*ostringstream oCoordsString;
-	string coordsString;*/
+	vector<Point3d> objPoints = Generate3DPoints(); // Perhaps this thing is the problem since it's empty. This probably should be the markers. Update:
+													// It is indeed this the problem. Need valid points, no crash with Generate3DPoints().
+	//Try using corners of the aruco markers, or at least, a corner. 
+		 
 	vector<int> markerIds;
 	vector<vector<Point2f>> markerCorners, rejectedCandidates;
 	aruco::DetectorParameters paramters;
@@ -65,8 +157,7 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 			break;
 
 		aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
-		aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimensions, cameraMatrix,
-			distanceCoefficients, rotationVectors, translationVectors);
+		aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimensions, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
 
 
 		for (int i = 0; i < markerIds.size(); i++)
@@ -75,26 +166,14 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 			aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.1f);
 			
 			//The below code is to print stuff on the screen. 
-			
-			//TODO: objPoints needs to be either Point2d or Point3d. It should probably be the values of the markers in the 3d plane, and imgPoints 
-			//may be referring to the <<frame>> variable. 
-			projectPoints(objPoints, rotationVectors[i], translationVectors[i], cameraMatrix, distanceCoefficients, imgPoints); // problem with some parameter
-			
-			ostringstream oCoordsString;
-			oCoordsString << "MARKER Position x=" << translationVectors[i][0] << "y=" << translationVectors[i][1] << "z=" << translationVectors[i][2];
-			string coordsString = oCoordsString.str();
-			//putText(frame,coordsString, Point(imgPoints[0].x, imgPoints[0].y) /*Point(50,50)*/, FONT_HERSHEY_COMPLEX_SMALL, 0.5, Scalar(0,255,26) );
-
-			cout << coordsString << endl;
-			//translationVectors<double>at.(), tvecs[i][0][0], translationVectors self.tvecs[i][0][1], translationVectors self.tvecs[i][0][2])
-			//cv2.putText(cv_image, str_position, (int(imgpts[0][0][0]), int(imgpts[0][0][1])), font, 1,
-
+			showCoordsAtPos(frame, Point(markerCorners[i][2].x, markerCorners[i][2].y), translationVectors[i]);
+			//cout << translationVectors[i] << endl;
+			cout << markerCorners[i][3] << endl;
+		 
 		}
 		aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
 
-
-		//Get the points on the screen of an aruco marker. 
-		//putText(frame, "Testing", Point(50, 50), FONT_HERSHEY_DUPLEX, 0.3f, Scalar(0, 143, 143), 2);
+			
 		imshow("Webcam", frame);
 		if (waitKey(30) >= 0) break;
 
