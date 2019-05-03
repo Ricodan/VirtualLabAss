@@ -22,7 +22,7 @@
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{28756E8E-3327-4B08-9665-EE235A816427}</ProjectGuid>
     <RootNamespace>VisualLabAssistant</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -82,12 +82,15 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>D:\OpenCVDir\opencv4\install\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\OpenCVDir\opencv4\install\include;%(AdditionalIncludeDirectories);</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>D:\OpenCVDir\opencv4\install\x64\vc15\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\OpenCVDir\opencv4\install\x64\vc15\lib;%(AdditionalLibraryDirectories);D:\OpenCVDir\opencv4\install\x64\vc15\bin;</AdditionalLibraryDirectories>
       <AdditionalDependencies>opencv_core410d.lib;opencv_highgui410d.lib;opencv_imgproc410d.lib;opencv_imgcodecs410d.lib;opencv_aruco410d.lib;opencv_calib3d410d.lib;opencv_video410d.lib;opencv_videoio410d.lib;opencv_videostab410d.lib;opencv_ccalib410d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <ProjectReference>
+      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
