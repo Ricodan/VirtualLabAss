@@ -42,6 +42,13 @@ void distanceToCamera(Mat& inOutFrame, Mat& cameraMatrix, Mat& distanceCoefficie
 
 }
 
+double euclideanDist(Vec3d pointA, Vec3d pointB)
+{
+	double dist = sqrt(pow(pointA[0] - pointB[0], 2) + pow(pointA[1] - pointB[1], 2) + pow(pointA[2] - pointB[2], 2));
+	return dist;
+
+}
+
 //Testing using this for the object points. 
 vector<Point3d> Generate3DPoints()
 {
@@ -81,6 +88,7 @@ vector<Point3d> Generate3DPoints()
 vector<Point3d> getAruco3dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
 {
 	//https://stackoverflow.com/questions/46363618/aruco-markers-with-opencv-get-the-3d-corner-coordinates
+	double halfSide = side / 2;
 
 	//Compute rot_mat
 	Mat rotMat;
@@ -88,14 +96,26 @@ vector<Point3d> getAruco3dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
 	//Transpose of rot_mat for easy column extraction.
 	Mat rotMatTpose = rotMat.t();
 
-	//Convert tvec to point
+	//E - 0 and F - 0 vectors
+	double* tmp = rotMatTpose.ptr<double>(0);
+	Point3d camWorldE(tmp[0]*halfSide, 
+					  tmp[1]* halfSide, 
+					  tmp[2]*halfSide);
 
-	Point3f tvec_3d(tvec[0], tvec[1], tvec[2]);
-
+	tmp = rotMatTpose.ptr<double>(1);
+	Point3d camWorldF(tmp[0] * halfSide,
+					  tmp[1] * halfSide,
+					  tmp[2] * halfSide);
+	
+	//convert tvec to point
+	Point3d tvec_3d(tvec[0], tvec[1], tvec[2]);
 	//return vector:
-
 	vector<Point3d> ret(4, tvec_3d);
-	//TODO get the proper coordinates. Also, why is it 4 coords in the example from SO?
+
+	ret[0] += ret[0] + camWorldE + camWorldF;
+	ret[1] += -camWorldE + camWorldF;
+	ret[2] += -camWorldE - camWorldF;
+	ret[3] += camWorldE - camWorldF;
 
 	return ret;
 
@@ -125,7 +145,7 @@ void showCoordsAtPos(Mat& frame, /*String string,*/ Point position, Vec3d tvec)
 	ostringstream oCoordsString;
 	oCoordsString << "MARKER Position x=" << tvec[0] << "y=" << tvec[1] << "z=" << tvec[2];
 	string coordsString = oCoordsString.str();
-	putText(frame, coordsString, position, FONT_HERSHEY_COMPLEX_SMALL, 0.5, Scalar(0, 255, 26));
+	putText(frame, coordsString, position, FONT_HERSHEY_COMPLEX_SMALL, 0.5, Scalar(0, 155, 135));
 }
 
 
@@ -134,12 +154,12 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 	Mat frame;
 	vector<Point3d> objPoints = Generate3DPoints(); // Perhaps this thing is the problem since it's empty. This probably should be the markers. Update:
 													// It is indeed this the problem. Need valid points, no crash with Generate3DPoints().
-	//Try using corners of the aruco markers, or at least, a corner. 
-		 
 	vector<int> markerIds;
 	vector<vector<Point2f>> markerCorners, rejectedCandidates;
 	aruco::DetectorParameters paramters;
 	Ptr< aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
+	//Calculate 3d distance
+	
 
 	VideoCapture vid(0);
 
@@ -159,7 +179,7 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 		aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
 		aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimensions, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
 
-
+		vector<Vec3d> twoPoints;
 		for (int i = 0; i < markerIds.size(); i++)
 		{
 
@@ -168,12 +188,19 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 			//The below code is to print stuff on the screen. 
 			showCoordsAtPos(frame, Point(markerCorners[i][2].x, markerCorners[i][2].y), translationVectors[i]);
 			//cout << translationVectors[i] << endl;
-			cout << markerCorners[i][3] << endl;
-		 
+			//cout << "Marker Corner " << markerCorners[i][3] << endl;
+			vector<Point3d> cornerC = getAruco3dCenterCoords(arucoSquareDimensions, rotationVectors[i], translationVectors[i]);
+			//cout << "3d coords " << i << " " << cornerC << endl;
+			twoPoints.push_back(cornerC[0]);
 		}
 		aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
 
-			
+		if (markerIds.size() >1)
+		{
+		double distance = euclideanDist(twoPoints[0], twoPoints[1]);
+		cout << distance << endl;
+		}
+		
 		imshow("Webcam", frame);
 		if (waitKey(30) >= 0) break;
 
