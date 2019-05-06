@@ -7,9 +7,8 @@
 #include "opencv2/calib3d.hpp"
 #include "opencv2/highgui.hpp"
 
-
 #include "Calibration.h"
-
+#include "Instrument.h"
  
 #include <stdint.h>
 #include <string>
@@ -22,7 +21,8 @@ using namespace cv;
 
 const int fps = 20;
 const float calibrationSquareDimension = 0.024f;
-const float arucoSquareDimension = 0.01f;
+const float arucoSquareDimension = 0.01f; //Distances are based in meters.
+const float arucoSquareDimensionSecondSet = 0.012;
 const Size chessboardDimensions = Size(9, 6);
 
 
@@ -82,7 +82,42 @@ vector<Point3d> Generate3DPoints()
 		std::cout << points[i] << std::endl << std::endl;
 	}
 
-	return points;
+return points;
+}
+
+vector<Point3d> get3dArucoSquareCorners(double side, Vec3d rvec, Vec3d tvec)
+{
+	//https://stackoverflow.com/questions/46363618/aruco-markers-with-opencv-get-the-3d-corner-coordinates
+	double halfSide = side / 2;
+
+	//Compute rot_mat
+	Mat rotMat;
+	Rodrigues(rvec, rotMat);
+	//Transpose of rot_mat for easy column extraction.
+	Mat rotMatTpose = rotMat.t();
+
+	//E - 0 and F - 0 vectors
+	double* tmp = rotMatTpose.ptr<double>(0);
+	Point3d camWorldE(tmp[0] * halfSide,
+		tmp[1] * halfSide,
+		tmp[2] * halfSide);
+
+	tmp = rotMatTpose.ptr<double>(1);
+	Point3d camWorldF(tmp[0] * halfSide,
+		tmp[1] * halfSide,
+		tmp[2] * halfSide);
+
+	//convert tvec to point
+	Point3d tvec_3d(tvec[0], tvec[1], tvec[2]);
+	//return vector:
+	vector<Point3d> ret(4, tvec_3d);
+
+	ret[0] += ret[0] + camWorldE + camWorldF;
+	ret[1] += -camWorldE + camWorldF;
+	ret[2] += -camWorldE - camWorldF;
+	ret[3] += camWorldE - camWorldF;
+
+	return ret;
 }
 
 vector<Point3d> getAruco3dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
@@ -98,21 +133,24 @@ vector<Point3d> getAruco3dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
 
 	//E - 0 and F - 0 vectors
 	double* tmp = rotMatTpose.ptr<double>(0);
-	Point3d camWorldE(tmp[0]*halfSide, 
-					  tmp[1]* halfSide, 
-					  tmp[2]*halfSide);
+	Point3d camWorldE(tmp[0] * halfSide,
+		tmp[1] * halfSide,
+		tmp[2] * halfSide);
 
 	tmp = rotMatTpose.ptr<double>(1);
 	Point3d camWorldF(tmp[0] * halfSide,
-					  tmp[1] * halfSide,
-					  tmp[2] * halfSide);
-	
+		tmp[1] * halfSide,
+		tmp[2] * halfSide);
+
+
+	//Point3d camWorldO();
+
 	//convert tvec to point
 	Point3d tvec_3d(tvec[0], tvec[1], tvec[2]);
 	//return vector:
 	vector<Point3d> ret(4, tvec_3d);
 
-	ret[0] += ret[0] + camWorldE + camWorldF;
+	ret[0] += camWorldE + camWorldF;
 	ret[1] += -camWorldE + camWorldF;
 	ret[2] += -camWorldE - camWorldF;
 	ret[3] += camWorldE - camWorldF;
@@ -140,8 +178,20 @@ Point3d getAruco2dCenterCoords(vector<Point2d> corners, double side, Vec3d rvec,
 
 }
 
+bool alreadyScanned(vector<Instrument> instruments, int id)
+{
+	for (auto it = instruments.begin(); it != instruments.end(); ++it )
+	{
+		if (it->arucoId == id)
+			return true;
+	}
+	return false;
+}
+
 void showCoordsAtPos(Mat& frame, /*String string,*/ Point position, Vec3d tvec)
 {
+	//The line below is how I was calling this function from the loop in startWebcamMonitoring
+	//showCoordsAtPos(frame, Point(markerCorners[i][2].x, markerCorners[i][2].y), translationVectors[i]);
 	ostringstream oCoordsString;
 	oCoordsString << "MARKER Position x=" << tvec[0] << "y=" << tvec[1] << "z=" << tvec[2];
 	string coordsString = oCoordsString.str();
@@ -152,17 +202,14 @@ void showCoordsAtPos(Mat& frame, /*String string,*/ Point position, Vec3d tvec)
 int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimensions)
 {
 	Mat frame;
-	vector<Point3d> objPoints = Generate3DPoints(); // Perhaps this thing is the problem since it's empty. This probably should be the markers. Update:
-													// It is indeed this the problem. Need valid points, no crash with Generate3DPoints().
-	vector<int> markerIds;
+ 	vector<int> markerIds;
 	vector<vector<Point2f>> markerCorners, rejectedCandidates;
 	aruco::DetectorParameters paramters;
 	Ptr< aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
-	//Calculate 3d distance
-	
-
+ 	
+	vector<Instrument> instruments; //Part of the object creation loop
 	VideoCapture vid(0);
-
+	
 	if (!vid.isOpened())
 	{
 		return -1;
@@ -179,27 +226,26 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 		aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
 		aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimensions, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
 
-		vector<Vec3d> twoPoints;
+		//vector<Vec3d> twoPoints;
 		for (int i = 0; i < markerIds.size(); i++)
 		{
-
-			aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.1f);
+			aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
+	
 			
-			//The below code is to print stuff on the screen. 
-			showCoordsAtPos(frame, Point(markerCorners[i][2].x, markerCorners[i][2].y), translationVectors[i]);
-			//cout << translationVectors[i] << endl;
-			//cout << "Marker Corner " << markerCorners[i][3] << endl;
-			vector<Point3d> cornerC = getAruco3dCenterCoords(arucoSquareDimensions, rotationVectors[i], translationVectors[i]);
-			//cout << "3d coords " << i << " " << cornerC << endl;
-			twoPoints.push_back(cornerC[0]);
+			if(!alreadyScanned(instruments, markerIds[i]))
+			{
+			Instrument current = Instrument(markerIds[i]);
+			instruments.push_back(current);
+			//cout << current.arucoId << endl;
+			}
+	 
+			
+		 
+			
 		}
-		aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
+		aruco::drawDetectedMarkers(frame, markerCorners, markerIds); //This thing is growing and creating new objects
+		cout << instruments.size() << endl; 
 
-		if (markerIds.size() >1)
-		{
-		double distance = euclideanDist(twoPoints[0], twoPoints[1]);
-		cout << distance << endl;
-		}
 		
 		imshow("Webcam", frame);
 		if (waitKey(30) >= 0) break;
@@ -213,7 +259,7 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 int main(char argv, char** argc)
 
 {
-	cout << "just something to pring" << endl;
+	cout << "just something to print" << endl;
 	Mat cameraMatrix = Mat::eye(3, 3, CV_64F);
 	Mat distanceCoefficients;
 
@@ -221,7 +267,7 @@ int main(char argv, char** argc)
 	//livestreamCameraCalibration(cameraMatrix, distanceCoefficients);
 	loadCameraCalibration("CalibrationInfo", cameraMatrix, distanceCoefficients);
 
-	startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
+	startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimensionSecondSet);
 
 	return 0;
 

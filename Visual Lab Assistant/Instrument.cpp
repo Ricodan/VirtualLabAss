@@ -1,12 +1,10 @@
 #include "Instrument.h"
 
 
-Instrument::Instrument()
+Instrument::Instrument(int id)
 {
 
-
-
-
+	this->arucoId = id;
 
 
 

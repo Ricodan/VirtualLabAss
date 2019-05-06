@@ -122,6 +122,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="InstrState.cpp" />
     <ClCompile Include="Instrument.cpp" />
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="Calibration.cpp" />
@@ -129,6 +130,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Calibration.h" />
+    <ClInclude Include="InstrState.h" />
     <ClInclude Include="Instrument.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

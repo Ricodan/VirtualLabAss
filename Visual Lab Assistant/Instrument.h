@@ -6,6 +6,8 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/aruco.hpp"
 
+#include "InstrState.h"
+
 #include <stdint.h>
 #include <iostream>
 
@@ -13,6 +15,7 @@ class Instrument
 {
 public:
 	int arucoId;
+	InstrState state;
 	//date of the last calibration 
 	int day, month, year;
 	cv::Point coordinates; //where on the screen the marker is located
@@ -21,7 +24,7 @@ public:
 
 
 
-	Instrument();
+	Instrument(int id);
 	~Instrument();
 };
 
