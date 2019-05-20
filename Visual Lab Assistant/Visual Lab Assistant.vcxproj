@@ -124,6 +124,7 @@
   <ItemGroup>
     <ClCompile Include="InstrState.cpp" />
     <ClCompile Include="Instrument.cpp" />
+    <ClCompile Include="Protocol.cpp" />
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="Calibration.cpp" />
     <ClCompile Include="vLabbAss.cpp" />
@@ -132,6 +133,7 @@
     <ClInclude Include="Calibration.h" />
     <ClInclude Include="InstrState.h" />
     <ClInclude Include="Instrument.h" />
+    <ClInclude Include="Protocol.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
