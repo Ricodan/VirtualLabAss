@@ -10,7 +10,8 @@
 #include "Calibration.h"
 #include "Instrument.h"
 #include "InocLoop.h"
- 
+#include "Protocol.h" 
+
 #include <stdint.h>
 #include <string>
 #include <sstream>
@@ -36,6 +37,12 @@ void writeTextOnMarker(Mat& outputFrame, Mat& cameraMatrix, Mat& distanceCoeffic
 
 
 }
+
+void simulatingStateMachine()
+{
+
+}
+
 
 
 void distanceToCamera(Mat& inOutFrame, Mat& cameraMatrix, Mat& distanceCoefficients)
@@ -161,7 +168,7 @@ vector<Point3d> getAruco3dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
 }
 
 Point3d getAruco2dCenterCoords(vector<Point2d> corners, double side, Vec3d rvec, Vec3d tvec)
-{
+{ 
 	Mat rotMat;
 	Rodrigues(rvec, rotMat);
 	//Transpose of rotMat for easy column extraction.
@@ -238,6 +245,7 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 
 	namedWindow("Webcam", WINDOW_AUTOSIZE);
 	vector<Vec3d> rotationVectors, translationVectors;
+	//Quite sure you can use these vectors for each marker to estimate an extrta point. 
 
 	while (true) //Basically the main loop of when the camera is running. 
 	{
@@ -264,7 +272,7 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 		 
 			
 		}
-		aruco::drawDetectedMarkers(frame, markerCorners, markerIds); //This thing is growing and creating new objects
+		aruco::drawDetectedMarkers(frame, markerCorners, markerIds); 
 		cout << instruments.size() << endl; 
 	
 		imshow("Webcam", frame);
@@ -275,6 +283,7 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 
 	return 1;
 }
+
 
 
 int main(char argv, char** argc)
@@ -288,7 +297,8 @@ int main(char argv, char** argc)
 	//livestreamCameraCalibration(cameraMatrix, distanceCoefficients);
 	loadCameraCalibration("CalibrationInfo", cameraMatrix, distanceCoefficients);
 
-	startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
+	//startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
+
 
 	return 0;
 
