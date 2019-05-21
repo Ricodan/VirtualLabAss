@@ -30,7 +30,11 @@
     <ClCompile Include="InstrState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+<<<<<<< HEAD
     <ClCompile Include="InocLoop.cpp">
+=======
+    <ClCompile Include="Protocol.cpp">
+>>>>>>> eab55f72527b7d295f68bf56eb8a37c73415345d
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -44,7 +48,11 @@
     <ClInclude Include="InstrState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+<<<<<<< HEAD
     <ClInclude Include="InocLoop.h">
+=======
+    <ClInclude Include="Protocol.h">
+>>>>>>> eab55f72527b7d295f68bf56eb8a37c73415345d
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

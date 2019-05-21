@@ -266,8 +266,7 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 		}
 		aruco::drawDetectedMarkers(frame, markerCorners, markerIds); //This thing is growing and creating new objects
 		cout << instruments.size() << endl; 
-
-		
+	
 		imshow("Webcam", frame);
 		if (waitKey(30) >= 0) break;
 
