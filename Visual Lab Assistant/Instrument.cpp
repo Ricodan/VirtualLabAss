@@ -3,12 +3,8 @@
 
 Instrument::Instrument(int id)
 {
-
 	this->arucoId = id;
-
-
-
-		
+	
 }
 
 

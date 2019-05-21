@@ -122,6 +122,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="InocLoop.cpp" />
     <ClCompile Include="InstrState.cpp" />
     <ClCompile Include="Instrument.cpp" />
     <ClCompile Include="Source.cpp" />
@@ -130,6 +131,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Calibration.h" />
+    <ClInclude Include="InocLoop.h" />
     <ClInclude Include="InstrState.h" />
     <ClInclude Include="Instrument.h" />
   </ItemGroup>

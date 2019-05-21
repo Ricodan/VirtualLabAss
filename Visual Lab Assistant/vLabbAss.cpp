@@ -9,6 +9,7 @@
 
 #include "Calibration.h"
 #include "Instrument.h"
+#include "InocLoop.h"
  
 #include <stdint.h>
 #include <string>
@@ -199,6 +200,26 @@ void showCoordsAtPos(Mat& frame, /*String string,*/ Point position, Vec3d tvec)
 }
 
 
+void instrumentScan(vector<Instrument>& instruments, int id)
+{
+//Do subclasses all fit into an array with the superclass as identifier?
+	switch (id)
+	{
+	case 0:
+	{
+		InocLoop loop = InocLoop(id);
+		instruments.push_back(loop);
+		break;
+	}
+	default:
+	{
+		Instrument instrument = Instrument(id);
+		instruments.push_back(instrument);
+		break;
+	}
+	}
+}
+
 int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimensions)
 {
 	Mat frame;
@@ -256,6 +277,7 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 	return 1;
 }
 
+
 int main(char argv, char** argc)
 
 {
@@ -267,7 +289,7 @@ int main(char argv, char** argc)
 	//livestreamCameraCalibration(cameraMatrix, distanceCoefficients);
 	loadCameraCalibration("CalibrationInfo", cameraMatrix, distanceCoefficients);
 
-	startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimensionSecondSet);
+	startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
 
 	return 0;
 

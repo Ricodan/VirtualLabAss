@@ -18,6 +18,7 @@ public:
 	InstrState state;
 	//date of the last calibration 
 	int day, month, year;
+
 	cv::Point coordinates; //where on the screen the marker is located
 
 
