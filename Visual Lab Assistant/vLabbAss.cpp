@@ -38,11 +38,6 @@ void writeTextOnMarker(Mat& outputFrame, Mat& cameraMatrix, Mat& distanceCoeffic
 
 }
 
-void simulatingStateMachine()
-{
-
-}
-
 
 
 void distanceToCamera(Mat& inOutFrame, Mat& cameraMatrix, Mat& distanceCoefficients)
@@ -349,6 +344,49 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 	return 1;
 }
 
+void simulatingStateMachine()
+{
+	Protocol labProtocol;
+	Protocol::start();
+	
+//	Protocol::start(); 
+	
+	 
+	while (true)
+	{
+		char c;
+		cout << "Options: c, Dip loop in Vial:d, Query State: q, " << endl;
+		cin >> c;
+		switch (c)
+		{
+		case 'q':
+			cout << "Pressed q" << endl;
+			Protocol::state<labProtocol>();
+		case 'c':
+			cout << "We'll here's a c" << endl;
+			break;
+
+		case 'd':
+			cout << "Pressed d" << endl;
+			Protocol::dispatch(LoopDippedInVial());
+			break;
+		case 's':
+			cout << "Pressed s" << endl;
+			Protocol::dispatch(Streak());
+			break;
+		default:
+			cout << "NO valid input" << endl;
+
+		}
+
+
+
+	}
+
+
+
+}
+
 
 
 int main(char argv, char** argc)
@@ -362,8 +400,8 @@ int main(char argv, char** argc)
 	//livestreamCameraCalibration(cameraMatrix, distanceCoefficients);
 	loadCameraCalibration("CalibrationInfo", cameraMatrix, distanceCoefficients);
 
-	startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
-
+	//startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
+	simulatingStateMachine();
 
 	return 0;
 

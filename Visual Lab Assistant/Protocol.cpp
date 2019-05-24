@@ -110,6 +110,12 @@ void Protocol::react(Stow const &) {
 	cout << "Stow " << endl;
 }
 
+Protocol::Protocol()
+{
+	cout << "Create a new State Machine" << endl;
+}
+
+FSM_INITIAL_STATE(Protocol, Clean)
 //Protocol::~Protocol()
 //{
 //
