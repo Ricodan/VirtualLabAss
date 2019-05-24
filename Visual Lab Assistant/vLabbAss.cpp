@@ -128,6 +128,7 @@ vector<Point3d> get3dArucoSquareCorners(double side, Vec3d rvec, Vec3d tvec)
 	return ret;
 }
 
+//Getting 3d points
 vector<Point3d> getAruco3dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
 {
 	//https://stackoverflow.com/questions/46363618/aruco-markers-with-opencv-get-the-3d-corner-coordinates
@@ -207,25 +208,82 @@ void showCoordsAtPos(Mat& frame, /*String string,*/ Point position, Vec3d tvec)
 }
 
 
-void instrumentScan(vector<Instrument>& instruments, int id)
+//void instrumentScan(vector<Instrument>& instruments, int id)
+//{
+//	/*Id 0 InocLoop
+//	Id 1 Bunsen Burner
+//	Id 10 - 19 Ependorph tubes
+//	Id 20 - 50 Petri dishes. 
+//	*/
+////Do subclasses all fit into an array with the superclass as identifier?
+//	switch (id)
+//	{
+//	case 0:
+//	{
+//		InocLoop loop = InocLoop(id);
+//		instruments.push_back(loop);
+//		break;
+//	}
+//	case 1:
+//	{
+//		Instrument instrument = Instrument(id);
+//		instruments.push_back(instrument);
+//		break;
+//	}
+//	default:
+//	{
+//		Instrument instrument = Instrument(id);
+//		instruments.push_back(instrument);
+//		break;
+//	}
+//	}
+//}
+
+void detectDistanceLoopToVial(vector<Instrument> instruments, Mat &frame)
 {
-//Do subclasses all fit into an array with the superclass as identifier?
-	switch (id)
+	vector<Instrument *> localInstrumentVector;
+	Instrument *loop = NULL;
+	Instrument *vial = NULL;
+	double distance;
+
+	for (int i = 0; i < instruments.size(); i++)
 	{
-	case 0:
+		if (instruments[i].arucoId == 0)
+		{
+			loop =  &instruments[i]; //Trying to create a pointer to the loop. 
+			localInstrumentVector.push_back(loop);
+		}
+		if (instruments[i].arucoId >= 10 && instruments[i].arucoId < 20)
+		{
+			vial = &instruments[i];
+			localInstrumentVector.push_back(vial);
+		}
+	}
+
+	//Store the points of these instruments
+	//The 3d coordinates is the corresponding camera translation vector. 
+	
+	if (localInstrumentVector.size() > 1)
 	{
-		InocLoop loop = InocLoop(id);
-		instruments.push_back(loop);
-		break;
+		distance = euclideanDist(vial->threeDimCoordinates, loop->threeDimCoordinates);
+		if (distance < 0.05)
+		{
+			cout << "Create Event" << endl;
+			ostringstream confirm;
+			confirm << "Less than 5cm";
+			string confirmationString = confirm.str();
+			putText(frame, confirmationString, Point(25,25), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 135));
+		}
+	
+	
+		cout << distance << endl;
 	}
-	default:
-	{
-		Instrument instrument = Instrument(id);
-		instruments.push_back(instrument);
-		break;
-	}
-	}
+	
+
+	
 }
+
+
 
 int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimensions)
 {
@@ -263,17 +321,24 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 			
 			if(!alreadyScanned(instruments, markerIds[i]))
 			{
-			Instrument current = Instrument(markerIds[i]);
+			Instrument current = Instrument(markerIds[i], translationVectors[i]);
 			instruments.push_back(current);
 			//cout << current.arucoId << endl;
 			}
-	 
+			else
+			{
+				instruments[i].threeDimCoordinates = translationVectors[i];
+			}
+			//Update the point continuously
 			
 		 
 			
 		}
+		detectDistanceLoopToVial(instruments, frame);
+
+
 		aruco::drawDetectedMarkers(frame, markerCorners, markerIds); 
-		cout << instruments.size() << endl; 
+		//cout << instruments.size() << endl; 
 	
 		imshow("Webcam", frame);
 		if (waitKey(30) >= 0) break;
@@ -297,7 +362,7 @@ int main(char argv, char** argc)
 	//livestreamCameraCalibration(cameraMatrix, distanceCoefficients);
 	loadCameraCalibration("CalibrationInfo", cameraMatrix, distanceCoefficients);
 
-	//startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
+	startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
 
 
 	return 0;

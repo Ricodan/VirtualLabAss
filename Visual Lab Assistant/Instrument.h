@@ -20,12 +20,12 @@ public:
 	int day, month, year;
 
 	cv::Point coordinates; //where on the screen the marker is located
+	cv::Vec3d threeDimCoordinates;
 
 
 
 
-
-	Instrument(int id);
+	Instrument(int id, cv::Vec3d markerCenterCoord);
 	~Instrument();
 };
 

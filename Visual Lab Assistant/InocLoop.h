@@ -2,7 +2,7 @@
 
 #include "Instrument.h"
 
-class InocLoop: public Instrument
+class InocLoop //: public Instrument
 {
 public:
 	InocLoop(int id);

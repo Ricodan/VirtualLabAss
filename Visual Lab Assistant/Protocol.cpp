@@ -5,11 +5,8 @@
 using namespace std;
 
 
-Protocol::Protocol()
-{
-
-}
-class PreStreak;
+ 
+class PreStreak; //Forward declaration
 class PostStreak;
 
 // ----------------------------------------------------------------------------
@@ -25,7 +22,7 @@ static void CallFirefighters() {
 }
 
 // ----------------------------------------------------------------------------
-// State: Cleam
+// State: Clean
 //
 
 class Clean : public Protocol
@@ -88,16 +85,30 @@ class PreStreak : public Protocol
 };
 
 
-
-
-
 class Spoiled : public Protocol
 {
 
 };
 
+//Some definitions are missing, especially for the non  virtual functions I think. 
+// ----------------------------------------------------------------------------
+// Base state: default implementations
+//
 
+void Protocol::react(LoopDippedInVial const &) {
+	cout << "LoopDippedInVial " << endl;
+}
 
+void Protocol::react(Streak const &) {
+	cout << "Streak" << endl;
+}
+
+void Protocol::react(LoopSterilize const &) {
+	cout << "LoopSterilize" << endl;
+}
+void Protocol::react(Stow const &) {
+	cout << "Stow " << endl;
+}
 
 //Protocol::~Protocol()
 //{
