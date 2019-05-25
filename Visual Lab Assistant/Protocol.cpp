@@ -31,8 +31,12 @@ class Clean : public Protocol
 		cout << "InoculationLoop id is now contaminated";
 
 		transit<PreStreak>();
-		
-	};
+	}
+
+	void myState()
+	{
+		cout << "Clean" << endl;
+	}
 };
 
 class InterClean : public Protocol
@@ -43,7 +47,7 @@ class InterClean : public Protocol
 
 		transit<PreStreak>();
 
-	};
+	}
 
 	void react(Stow const & e) override {
 		cout << "Beginning with a new Petri dish";
@@ -51,7 +55,7 @@ class InterClean : public Protocol
 
 		transit<Clean>();
 
-	};
+	}
 
 	void react(Streak const & e) override {
 		cout << "InoculationLoop id is now Contaminated ";
@@ -59,7 +63,13 @@ class InterClean : public Protocol
 
 		transit<PostStreak>();
 
-	};
+	}
+
+	void myState()
+	{
+		cout << "InterClean" << endl;
+	}
+
 };
 
 class PostStreak : public Protocol
@@ -69,8 +79,11 @@ class PostStreak : public Protocol
 		cout << "Sterilization";
 
 		transit<InterClean>();
-
 	};
+	void myState()
+	{
+		cout << "PostStreak" << endl;
+	}
 };
 
 class PreStreak : public Protocol
@@ -82,6 +95,11 @@ class PreStreak : public Protocol
 		transit<PostStreak>();
 	
 	};
+
+	void myState()
+	{
+		cout << "PreStreak" << endl;
+	}
 };
 
 
@@ -109,11 +127,17 @@ void Protocol::react(LoopSterilize const &) {
 void Protocol::react(Stow const &) {
 	cout << "Stow " << endl;
 }
+ 
+void Protocol::myState()
+{
+	cout << "Base State" << endl;
+}
 
 Protocol::Protocol()
 {
 	cout << "Create a new State Machine" << endl;
 }
+
 
 FSM_INITIAL_STATE(Protocol, Clean)
 //Protocol::~Protocol()

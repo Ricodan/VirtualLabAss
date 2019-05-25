@@ -47,6 +47,7 @@ public:
 	virtual void react(LoopSterilize	const &);
 	virtual void react(Stow				const &);
 	void         react(Soil				const &); //This last one is shared by all states, so it's not virtual.
+	virtual void myState();
 	Protocol();
 
 	virtual void entry(void) {};

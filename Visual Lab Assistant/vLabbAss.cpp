@@ -348,7 +348,8 @@ void simulatingStateMachine()
 {
 	Protocol labProtocol;
 	Protocol::start();
-	
+	labProtocol.start();
+	Protocol* current;
 //	Protocol::start(); 
 	
 	 
@@ -361,7 +362,10 @@ void simulatingStateMachine()
 		{
 		case 'q':
 			cout << "Pressed q" << endl;
-			Protocol::state<labProtocol>();
+			current = &labProtocol.state<Protocol>();
+			current->myState();
+			break;
+
 		case 'c':
 			cout << "We'll here's a c" << endl;
 			break;
@@ -370,10 +374,12 @@ void simulatingStateMachine()
 			cout << "Pressed d" << endl;
 			Protocol::dispatch(LoopDippedInVial());
 			break;
+
 		case 's':
 			cout << "Pressed s" << endl;
 			Protocol::dispatch(Streak());
 			break;
+
 		default:
 			cout << "NO valid input" << endl;
 
