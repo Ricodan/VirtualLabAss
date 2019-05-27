@@ -346,28 +346,28 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 
 void simulatingStateMachine()
 {
-	Protocol labProtocol;
+	 
 	Protocol::start();
-	labProtocol.start();
-	Protocol* current;
-//	Protocol::start(); 
+	 
+	
+
 	
 	 
 	while (true)
 	{
 		char c;
-		cout << "Options: c, Dip loop in Vial:d, Query State: q, " << endl;
+		cout << "c :Options, d: Dip loop in Vial, q: Query State, s: Streak, t: Sterilize, p: Stow " << endl;
 		cin >> c;
 		switch (c)
 		{
 		case 'q':
+			
 			cout << "Pressed q" << endl;
-			current = &labProtocol.state<Protocol>();
-			current->myState();
+			Protocol::state<Protocol>().current_state_ptr->myState();
 			break;
 
 		case 'c':
-			cout << "We'll here's a c" << endl;
+			cout << "Pressed c" << endl;
 			break;
 
 		case 'd':
@@ -378,6 +378,11 @@ void simulatingStateMachine()
 		case 's':
 			cout << "Pressed s" << endl;
 			Protocol::dispatch(Streak());
+			break;
+
+		case 't':
+			cout << "Pressed t" << endl;
+			Protocol::dispatch(LoopSterilize());
 			break;
 
 		default:

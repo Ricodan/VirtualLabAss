@@ -2,7 +2,6 @@
 #define PROTOCOL_HPP_INCLUDED
 
 #include "tinyfsm.hpp"
-
 #include <iostream>
 
 // ----------------------------------------------------------------------------
@@ -28,7 +27,7 @@ struct Stow :				LabEvent { };
 //An Invalidating action
 struct Soil :				LabEvent { };
 //Keyboard Interrupt
-//struct Alarm : tinyfsm::Event { };
+struct KeyboardEnd : tinyfsm::Event { };
 
 
 
@@ -40,7 +39,7 @@ class Protocol : public tinyfsm::Fsm<Protocol>
 public:
 
 	/* default reaction for unhandled events */
-	void react(tinyfsm::Event const &) {};
+	void react(tinyfsm::Event const &) { std::cout << "Stay here" << std::endl;};
 
 	virtual void react(LoopDippedInVial const &);
 	virtual void react(Streak			const &);
@@ -51,7 +50,7 @@ public:
 	Protocol();
 
 	virtual void entry(void) {};
-	void         exit(void) { };
+	void         exit(void) {};
 	
 
 protected:

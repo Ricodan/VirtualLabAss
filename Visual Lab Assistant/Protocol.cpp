@@ -10,16 +10,24 @@ class PreStreak; //Forward declaration
 class PostStreak;
 
 // ----------------------------------------------------------------------------
-// Transition functions
+// Transition and condition functions
 //
 
-static void CallMaintenance() {
+static void CallMaintenance() 
+{
 	cout << "*** calling maintenance ***" << endl;
 }
 
-static void CallFirefighters() {
+static void CallFirefighters() 
+{
 	cout << "*** calling firefighters ***" << endl;
 }
+static bool loopIsSterilized()
+{
+	
+	cout << "*** Checking if the loop is sterlized***" << endl;
+}
+
 
 // ----------------------------------------------------------------------------
 // State: Clean
@@ -28,8 +36,8 @@ static void CallFirefighters() {
 class Clean : public Protocol
 {
 	void react(LoopDippedInVial const & e) override {
-		cout << "InoculationLoop id is now contaminated";
-
+		cout << "InoculationLoop id is now contaminated" <<endl;
+		cout << "Transiting to PreStreak" << endl;
 		transit<PreStreak>();
 	}
 
@@ -39,27 +47,41 @@ class Clean : public Protocol
 	}
 };
 
+// ----------------------------------------------------------------------------
+// State: End
+//
+
+class End : public Protocol
+{
+
+};
+
+// ----------------------------------------------------------------------------
+// State: InterClean
+//
 class InterClean : public Protocol
 {
-	void react(LoopDippedInVial const & e) override {
-		cout << "InoculationLoop id is now Contaminated ";
+	void react(LoopDippedInVial const & e) override 
+	{
+		cout << "InoculationLoop id is now Contaminated "<< endl;
 		cout << "Dipped in Vial";
-
+		cout << "Transiting to PreStreak" << endl;
 		transit<PreStreak>();
 
 	}
 
-	void react(Stow const & e) override {
-		cout << "Beginning with a new Petri dish";
-
-
+	void react(Stow const & e) override 
+	{
+		cout << "Beginning with a new Petri dish" << endl;
+		cout << "Transiting to Clean" << endl;
 		transit<Clean>();
 
 	}
 
-	void react(Streak const & e) override {
-		cout << "InoculationLoop id is now Contaminated ";
-		cout << "Streaked";
+	void react(Streak const & e) override 
+	{
+		cout << "InoculationLoop id is now Contaminated " << endl;
+		cout << "Streaked" << endl;
 
 		transit<PostStreak>();
 
@@ -72,29 +94,44 @@ class InterClean : public Protocol
 
 };
 
+// ----------------------------------------------------------------------------
+// State: PostStreak
+//
 class PostStreak : public Protocol
 {
-	void react(LoopSterilize const & e) override {
-		cout << "InoculationLoop id is now Sterilized ";
-		cout << "Sterilization";
+	void react(LoopSterilize const & e) override 
+	{
+		cout << "InoculationLoop id is now Sterilized "<< endl;
+		cout << "Sterilization" << endl;
 
 		transit<InterClean>();
-	};
+	}
+
+	void react(Streak const & e) override
+	{
+		cout << "You fucked up" << endl;
+		transit<End>();
+	}
+
 	void myState()
 	{
 		cout << "PostStreak" << endl;
 	}
 };
 
+// ----------------------------------------------------------------------------
+// State: PreStreak
+//
 class PreStreak : public Protocol
 {
-	void react(Streak const & e) override {
-		cout << "InoculationLoop id is now contaminated ";
-		cout << "Streak";
+	void react(Streak const & e) override
+	{
+		cout << "InoculationLoop id is now contaminated " << endl;
+		cout << "Streak" << endl;
 
 		transit<PostStreak>();
 	
-	};
+	}
 
 	void myState()
 	{
@@ -102,36 +139,70 @@ class PreStreak : public Protocol
 	}
 };
 
-
+// ----------------------------------------------------------------------------
+// State: Spoiled
+//
 class Spoiled : public Protocol
 {
+	void react(LoopSterilize const & e) override 
+	{
+		cout << "InoculationLoop id is now sterilized " << endl;
+		cout << "Sterilize" << endl;
+		transit<Clean>();
+
+	}
+	void myState()
+	{
+		cout << "Spoiled" << endl;
+	}
 
 };
+
+
+
 
 //Some definitions are missing, especially for the non  virtual functions I think. 
 // ----------------------------------------------------------------------------
 // Base state: default implementations
 //
 
-void Protocol::react(LoopDippedInVial const &) {
+void Protocol::react(LoopDippedInVial const &) 
+{
 	cout << "LoopDippedInVial " << endl;
 }
 
-void Protocol::react(Streak const &) {
+void Protocol::react(Streak const &) 
+{
 	cout << "Streak" << endl;
 }
 
-void Protocol::react(LoopSterilize const &) {
+void Protocol::react(LoopSterilize const &) 
+{
 	cout << "LoopSterilize" << endl;
 }
-void Protocol::react(Stow const &) {
+void Protocol::react(Stow const &) 
+{
 	cout << "Stow " << endl;
 }
  
+void Protocol::react(Soil const &) 
+{
+ 		cout << "InoculationLoop id is now contaminated ";
+		cout << "Streak";
+		transit<Spoiled>();
+		 
+}
+
 void Protocol::myState()
 {
 	cout << "Base State" << endl;
 }
+
+//void Protocol::react(tinyfsm::Event const &) 
+//{
+//	cout << "Illegal" << endl;
+//
+//}
 
 Protocol::Protocol()
 {
@@ -139,7 +210,10 @@ Protocol::Protocol()
 }
 
 
+
 FSM_INITIAL_STATE(Protocol, Clean)
+
+
 //Protocol::~Protocol()
 //{
 //
