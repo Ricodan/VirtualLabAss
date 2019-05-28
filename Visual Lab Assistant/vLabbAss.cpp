@@ -163,7 +163,8 @@ vector<Point3d> getAruco3dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
 
 }
 
-Point3d getAruco2dCenterCoords(vector<Point2d> corners, double side, Vec3d rvec, Vec3d tvec)
+//Perhaps change this to Point 3f to make it easier 
+Point3d getAruco2dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
 { 
 	Mat rotMat;
 	Rodrigues(rvec, rotMat);
@@ -278,7 +279,41 @@ void detectDistanceLoopToVial(vector<Instrument> instruments, Mat &frame)
 	
 }
 
+void tipOfLoop(Mat& frame, Vec3f initPoint, Vec3d rvec, Vec3d tvec, const Mat& camMatrix, const Mat& distCoeff)
+{
+	vector<Point3f> objPoints;
+	vector<Point2f> imgPoints;
 
+
+	Point3f initPoint3d = initPoint;
+	Vec3f tipOfLoop = initPoint;
+	tipOfLoop[0] = tipOfLoop[0] + 1.0; //trying to create a point that is only sticking out on the x-axis
+	
+	Vec2f tipOfLoop2d;
+	Vec2f initPoint2d;
+	Point2f tipOfLoop2dPoint = tipOfLoop2d;
+	Point2f initPoint2dPoint = initPoint2d;
+	
+	objPoints.push_back(initPoint);
+	objPoints.push_back(tipOfLoop);
+
+	//Need to get the 2d positions of the line based on the 3d positions. 
+	/*projectPoints(InputArray 	objectPoints,
+		InputArray 	rvec,
+		InputArray 	tvec,
+		InputArray 	cameraMatrix,
+		InputArray 	distCoeffs,
+		OutputArray 	imagePoints,
+		OutputArray 	jacobian = noArray(),
+		double 	aspectRatio = 0
+	) */
+	projectPoints(objPoints, rvec, tvec, camMatrix, distCoeff, imgPoints);
+	//projectPoints(tipOfLoop, rvec, tvec, camMatrix, distCoeff, tipOfLoop2d);
+	//The line is not really accurate
+	line(frame, imgPoints[0], imgPoints[1], Scalar(0, 255, 255), 5);
+
+
+}
 
 int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimensions)
 {
@@ -287,18 +322,17 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 	vector<vector<Point2f>> markerCorners, rejectedCandidates;
 	aruco::DetectorParameters paramters;
 	Ptr< aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
- 	
-	vector<Instrument> instruments; //Part of the object creation loop
+ 	vector<Instrument> instruments; //Part of the object creation loop
+	vector<Vec3d> rotationVectors, translationVectors;
 	VideoCapture vid(0);
 	
+	 
 	if (!vid.isOpened())
 	{
 		return -1;
 	}
-
 	namedWindow("Webcam", WINDOW_AUTOSIZE);
-	vector<Vec3d> rotationVectors, translationVectors;
-	//Quite sure you can use these vectors for each marker to estimate an extrta point. 
+
 
 	while (true) //Basically the main loop of when the camera is running. 
 	{
@@ -312,26 +346,25 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 		for (int i = 0; i < markerIds.size(); i++)
 		{
 			aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
-	
 			
-			if(!alreadyScanned(instruments, markerIds[i]))
-			{
-			Instrument current = Instrument(markerIds[i], translationVectors[i]);
-			instruments.push_back(current);
-			//cout << current.arucoId << endl;
-			}
-			else
-			{
-				instruments[i].threeDimCoordinates = translationVectors[i];
-			}
+			//I don't remember which function is more appropiate if this or getAruco3dCentercoords()
+			Vec3d initPoint = getAruco2dCenterCoords(arucoSquareDimensions, rotationVectors[i], translationVectors[i]);
+			tipOfLoop(frame, initPoint, rotationVectors[i], translationVectors[i], cameraMatrix, distanceCoefficients);
+			
+			//if(!alreadyScanned(instruments, markerIds[i]))
+			//{
+			//Instrument current = Instrument(markerIds[i], translationVectors[i]);
+			//instruments.push_back(current);
+			////cout << current.arucoId << endl;
+			//}
+			//else
+			//{
+			//	instruments[i].threeDimCoordinates = translationVectors[i];
+			//}
 			//Update the point continuously
-			
-		 
-			
+
 		}
-		detectDistanceLoopToVial(instruments, frame);
-
-
+		//detectDistanceLoopToVial(instruments, frame);
 		aruco::drawDetectedMarkers(frame, markerCorners, markerIds); 
 		//cout << instruments.size() << endl; 
 	
@@ -348,20 +381,15 @@ void simulatingStateMachine()
 {
 	 
 	Protocol::start();
-	 
-	
-
-	
-	 
+ 
 	while (true)
 	{
 		char c;
-		cout << "c :Options, d: Dip loop in Vial, q: Query State, s: Streak, t: Sterilize, p: Stow " << endl;
+		cout << " c :Options, \n d: Dip loop in Vial, \n q: Query State, \n s: Streak, \n t: Sterilize, \n o: Stow, \n i: Soil " << endl;
 		cin >> c;
 		switch (c)
 		{
 		case 'q':
-			
 			cout << "Pressed q" << endl;
 			Protocol::state<Protocol>().current_state_ptr->myState();
 			break;
@@ -385,18 +413,23 @@ void simulatingStateMachine()
 			Protocol::dispatch(LoopSterilize());
 			break;
 
+		case 'o':
+			cout << "Pressed o" << endl;
+			Protocol::dispatch(Stow());
+			break;
+
+		case 'i':
+			cout << "Pressed i" << endl;
+			Protocol::dispatch(Soil());
+			break;
+
 		default:
 			cout << "NO valid input" << endl;
 
 		}
-
-
-
 	}
-
-
-
 }
+
 
 
 
@@ -411,8 +444,8 @@ int main(char argv, char** argc)
 	//livestreamCameraCalibration(cameraMatrix, distanceCoefficients);
 	loadCameraCalibration("CalibrationInfo", cameraMatrix, distanceCoefficients);
 
-	//startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
-	simulatingStateMachine();
+	startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
+	//simulatingStateMachine();
 
 	return 0;
 

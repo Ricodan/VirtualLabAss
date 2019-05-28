@@ -8,6 +8,7 @@ using namespace std;
  
 class PreStreak; //Forward declaration
 class PostStreak;
+class Spoiled;
 
 // ----------------------------------------------------------------------------
 // Transition and condition functions
@@ -35,11 +36,20 @@ static bool loopIsSterilized()
 
 class Clean : public Protocol
 {
-	void react(LoopDippedInVial const & e) override {
+	void react(LoopDippedInVial const & e) override 
+	{
 		cout << "InoculationLoop id is now contaminated" <<endl;
 		cout << "Transiting to PreStreak" << endl;
 		transit<PreStreak>();
 	}
+
+	void react(Streak const & e) override
+	{
+		cout << "InoculationLoop id is now contaminated" << endl;
+		cout << "Transiting to Soiled, you made a wrong move" << endl;
+		transit<Spoiled>();
+	}
+
 
 	void myState()
 	{
@@ -128,11 +138,16 @@ class PreStreak : public Protocol
 	{
 		cout << "InoculationLoop id is now contaminated " << endl;
 		cout << "Streak" << endl;
-
 		transit<PostStreak>();
-	
 	}
 
+	void react(LoopSterilize const & e) override
+	{
+		cout << "InoculationLoop id is now sterilized " << endl;
+		cout << "Sterilized Loop" << endl;
+		transit<Clean>();
+	}
+		
 	void myState()
 	{
 		cout << "PreStreak" << endl;
