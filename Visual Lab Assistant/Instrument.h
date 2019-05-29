@@ -23,7 +23,14 @@ public:
 	cv::Vec3d threeDimCoordinates;
 
 
+	enum instrType {
+		LOOP = 0,
+		EPENDORPH = 1,
+		BURNER = 2,
+		PETRI = 3
+	};
 
+	void react();
 
 	Instrument(int id, cv::Vec3d markerCenterCoord);
 	~Instrument();

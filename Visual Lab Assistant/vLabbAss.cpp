@@ -124,7 +124,7 @@ vector<Point3d> get3dArucoSquareCorners(double side, Vec3d rvec, Vec3d tvec)
 }
 
 //Getting 3d points
-vector<Point3d> getAruco3dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
+vector<Point3d> getAruco3dCornerCoords(double side, Vec3d rvec, Vec3d tvec)
 {
 	//https://stackoverflow.com/questions/46363618/aruco-markers-with-opencv-get-the-3d-corner-coordinates
 	double halfSide = side / 2;
@@ -154,17 +154,17 @@ vector<Point3d> getAruco3dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
 	//return vector:
 	vector<Point3d> ret(4, tvec_3d);
 
-	ret[0] += camWorldE + camWorldF;
-	ret[1] += -camWorldE + camWorldF;
-	ret[2] += -camWorldE - camWorldF;
-	ret[3] += camWorldE - camWorldF;
+	ret[0] += camWorldE + camWorldF;  //Top Left Corner
+	ret[1] += -camWorldE + camWorldF; //Top Right Corner
+	ret[2] += -camWorldE - camWorldF; //Bottom Right Corner
+	ret[3] += camWorldE - camWorldF;  //Bottom Left Corner
 
 	return ret;
 
 }
 
 //Perhaps change this to Point 3f to make it easier 
-Point3d getAruco2dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
+Point3d getAruco3dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
 { 
 	Mat rotMat;
 	Rodrigues(rvec, rotMat);
@@ -176,7 +176,7 @@ Point3d getAruco2dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
 	Point3d tvec3D(tvec[0], tvec[1], tvec[2]);
 
 	camWorldO += tvec3D;
-	cout << camWorldO.x << " " << camWorldO.y << endl;
+	//cout << camWorldO.x << " " << camWorldO.y<< " " <<camWorldO.z << endl;
 
 	return camWorldO;
 
@@ -279,39 +279,44 @@ void detectDistanceLoopToVial(vector<Instrument> instruments, Mat &frame)
 	
 }
 
-void tipOfLoop(Mat& frame, Vec3f initPoint, Vec3d rvec, Vec3d tvec, const Mat& camMatrix, const Mat& distCoeff)
+Point3d tipOfLoop(Mat& frame, Vec3d initPoint, Vec3d rvec, Vec3d tvec, const Mat& camMatrix, const Mat& distCoeff)
 {
-	vector<Point3f> objPoints;
-	vector<Point2f> imgPoints;
-
-
-	Point3f initPoint3d = initPoint;
-	Vec3f tipOfLoop = initPoint;
-	tipOfLoop[0] = tipOfLoop[0] + 1.0; //trying to create a point that is only sticking out on the x-axis
-	
-	Vec2f tipOfLoop2d;
-	Vec2f initPoint2d;
-	Point2f tipOfLoop2dPoint = tipOfLoop2d;
-	Point2f initPoint2dPoint = initPoint2d;
-	
-	objPoints.push_back(initPoint);
+	vector<Point3d> objPoints;
+	vector<Point2d> imgPoints;
+	Point3d centerPoint3d = initPoint;
+	Point3d tipOfLoop = centerPoint3d;
+ 	objPoints.push_back(centerPoint3d);
+ 
+	//Projection of the point where the tip ought to be.
+	Mat rotMat;
+	Rodrigues(rvec, rotMat);
+	Mat rotMatTpose = rotMat.t();
+	double* tmp = rotMatTpose.ptr<double>(0);
+	Point3d camWorldE(tmp[0] * 0.108, tmp[1] * 0.108,	tmp[2] * 0.108);
+	tipOfLoop += camWorldE;
 	objPoints.push_back(tipOfLoop);
+	//End of point projection code
 
-	//Need to get the 2d positions of the line based on the 3d positions. 
-	/*projectPoints(InputArray 	objectPoints,
-		InputArray 	rvec,
-		InputArray 	tvec,
-		InputArray 	cameraMatrix,
-		InputArray 	distCoeffs,
-		OutputArray 	imagePoints,
-		OutputArray 	jacobian = noArray(),
-		double 	aspectRatio = 0
-	) */
-	projectPoints(objPoints, rvec, tvec, camMatrix, distCoeff, imgPoints);
+
+	//It works after setting the rvec and tvec to (0,0,0). I don't really know why.
+	projectPoints(objPoints, Vec3d(0,0,0), Vec3d(0, 0, 0), camMatrix, distCoeff, imgPoints);
+	 
 	//projectPoints(tipOfLoop, rvec, tvec, camMatrix, distCoeff, tipOfLoop2d);
 	//The line is not really accurate
-	line(frame, imgPoints[0], imgPoints[1], Scalar(0, 255, 255), 5);
+	line(frame, imgPoints[0], imgPoints[1], Scalar(0, 255, 255), 1, 1);
+	circle(frame, imgPoints[1], 5, Scalar(0,0,255), 0.2);
 
+	return tipOfLoop;
+}
+
+void checkProximity(vector<Instrument*> instruments)
+{
+	vector<Instrument *> shortenedInstrList;
+
+	//Iterate through the instruments list
+		//calculate distance to other instruments in the shortenedInstrList
+			//If contanct then react(currentInstrument, targetInstrument)
+		//just continue if nothing
 
 }
 
@@ -322,7 +327,7 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 	vector<vector<Point2f>> markerCorners, rejectedCandidates;
 	aruco::DetectorParameters paramters;
 	Ptr< aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
- 	vector<Instrument> instruments; //Part of the object creation loop
+ 	vector<Instrument*> instruments; //Part of the object creation loop
 	vector<Vec3d> rotationVectors, translationVectors;
 	VideoCapture vid(0);
 	
@@ -348,8 +353,8 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 			aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
 			
 			//I don't remember which function is more appropiate if this or getAruco3dCentercoords()
-			Vec3d initPoint = getAruco2dCenterCoords(arucoSquareDimensions, rotationVectors[i], translationVectors[i]);
-			tipOfLoop(frame, initPoint, rotationVectors[i], translationVectors[i], cameraMatrix, distanceCoefficients);
+			//Vec3d initPoint = getAruco3dCenterCoords(arucoSquareDimensions, rotationVectors[i], translationVectors[i]);
+			tipOfLoop(frame, translationVectors[i], rotationVectors[i], translationVectors[i], cameraMatrix, distanceCoefficients);
 			
 			//if(!alreadyScanned(instruments, markerIds[i]))
 			//{
@@ -430,13 +435,9 @@ void simulatingStateMachine()
 	}
 }
 
-
-
-
 int main(char argv, char** argc)
 
 {
-	cout << "just something to print" << endl;
 	Mat cameraMatrix = Mat::eye(3, 3, CV_64F);
 	Mat distanceCoefficients;
 
@@ -444,11 +445,8 @@ int main(char argv, char** argc)
 	//livestreamCameraCalibration(cameraMatrix, distanceCoefficients);
 	loadCameraCalibration("CalibrationInfo", cameraMatrix, distanceCoefficients);
 
-	startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
+	startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimensionSecondSet);
 	//simulatingStateMachine();
 
 	return 0;
-
-
-
 }
