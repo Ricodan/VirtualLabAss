@@ -183,15 +183,7 @@ Point3d getAruco3dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
 
 }
 
-bool alreadyScanned(vector<Instrument> instruments, int id)
-{
-	for (auto it = instruments.begin(); it != instruments.end(); ++it )
-	{
-		if (it->arucoId == id)
-			return true;
-	}
-	return false;
-}
+
 
 void showCoordsAtPos(Mat& frame, /*String string,*/ Point position, Vec3d tvec)
 {
@@ -309,9 +301,30 @@ Point3d tipOfLoop(Mat& frame, Vec3d initPoint, Vec3d rvec, Vec3d tvec, const Mat
 	return tipOfLoop;
 }
 
+bool alreadyScanned(vector<Instrument*> instruments, int id)
+{
+	for (vector<Instrument *>::iterator it = instruments.begin(); it != instruments.end(); ++it)
+	{
+		if ((*it)->arucoId == id)
+			return true;
+	}
+	return false;
+}
+
 void checkProximity(vector<Instrument*> instruments)
 {
-	vector<Instrument *> shortenedInstrList;
+	vector<Instrument *> shortenedInstrList = instruments;
+	Instrument * current;
+	Instrument * target;
+
+
+
+	for (vector<Instrument *>::iterator it = instruments.begin(); it != instruments.end(); ++it) 
+	{
+		cout << *it << endl;
+		/* std::cout << *it; ... */
+	}
+
 
 	//Iterate through the instruments list
 		//calculate distance to other instruments in the shortenedInstrList
@@ -354,18 +367,20 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 			
 			//I don't remember which function is more appropiate if this or getAruco3dCentercoords()
 			//Vec3d initPoint = getAruco3dCenterCoords(arucoSquareDimensions, rotationVectors[i], translationVectors[i]);
-			tipOfLoop(frame, translationVectors[i], rotationVectors[i], translationVectors[i], cameraMatrix, distanceCoefficients);
+			//tipOfLoop(frame, translationVectors[i], rotationVectors[i], translationVectors[i], cameraMatrix, distanceCoefficients);
 			
-			//if(!alreadyScanned(instruments, markerIds[i]))
-			//{
-			//Instrument current = Instrument(markerIds[i], translationVectors[i]);
-			//instruments.push_back(current);
-			////cout << current.arucoId << endl;
-			//}
-			//else
-			//{
-			//	instruments[i].threeDimCoordinates = translationVectors[i];
-			//}
+
+			if(!alreadyScanned(instruments, markerIds[i])) // redefine to take pointers and not actual objects
+			{
+				//Using smart pointer I think.
+						
+			instruments.push_back( new Instrument(markerIds[i], translationVectors[i]) );
+			//cout << current.arucoId << endl;
+			}
+			else
+			{
+				instruments[i]->threeDimCoordinates = translationVectors[i];
+			}
 			//Update the point continuously
 
 		}
