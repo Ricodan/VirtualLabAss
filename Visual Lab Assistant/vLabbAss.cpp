@@ -183,8 +183,6 @@ Point3d getAruco3dCenterCoords(double side, Vec3d rvec, Vec3d tvec)
 
 }
 
-
-
 void showCoordsAtPos(Mat& frame, /*String string,*/ Point position, Vec3d tvec)
 {
 	//The line below is how I was calling this function from the loop in startWebcamMonitoring
@@ -311,26 +309,37 @@ bool alreadyScanned(vector<Instrument*> instruments, int id)
 	return false;
 }
 
+
+
 void checkProximity(vector<Instrument*> instruments)
 {
-	vector<Instrument *> shortenedInstrList = instruments;
+ 
 	Instrument * current;
 	Instrument * target;
-
-
-
-	for (vector<Instrument *>::iterator it = instruments.begin(); it != instruments.end(); ++it) 
+ 
+	for (int i = 0; i < instruments.size() ; i++) 
 	{
-		cout << *it << endl;
-		/* std::cout << *it; ... */
+		if (instruments.size() > 1) // I hope this is correct now
+		{ 
+			for (int j = i +1 ; j < instruments.size(); j++)
+			{
+				current = instruments[i];
+				target = instruments[j];
+				// THE LATEST UPDATED POSITIONS ARE THE ONES THAT REMAIN IN THE CLASS MEMBER
+				// WHEN THE INSTRUMENT LEAVES THE SCREEN.
+				if (current->madeContact(target)) // gotta test this, check if it reacts appropriately.
+				{
+					cout << "Contact" << endl;
+					cout << current->arucoId << " Has made contact with " << target->arucoId << endl;
+					//(*it)->react(*its);
+				}
+		 	}
+		}
 	}
-
-
 	//Iterate through the instruments list
 		//calculate distance to other instruments in the shortenedInstrList
 			//If contanct then react(currentInstrument, targetInstrument)
 		//just continue if nothing
-
 }
 
 int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimensions)
@@ -343,14 +352,12 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
  	vector<Instrument*> instruments; //Part of the object creation loop
 	vector<Vec3d> rotationVectors, translationVectors;
 	VideoCapture vid(0);
-	
 	 
 	if (!vid.isOpened())
 	{
 		return -1;
 	}
 	namedWindow("Webcam", WINDOW_AUTOSIZE);
-
 
 	while (true) //Basically the main loop of when the camera is running. 
 	{
@@ -368,14 +375,11 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 			//I don't remember which function is more appropiate if this or getAruco3dCentercoords()
 			//Vec3d initPoint = getAruco3dCenterCoords(arucoSquareDimensions, rotationVectors[i], translationVectors[i]);
 			//tipOfLoop(frame, translationVectors[i], rotationVectors[i], translationVectors[i], cameraMatrix, distanceCoefficients);
-			
-
 			if(!alreadyScanned(instruments, markerIds[i])) // redefine to take pointers and not actual objects
 			{
 				//Using smart pointer I think.
-						
-			instruments.push_back( new Instrument(markerIds[i], translationVectors[i]) );
-			//cout << current.arucoId << endl;
+				instruments.push_back( new Instrument(markerIds[i], translationVectors[i]) );
+				//cout << current.arucoId << endl;
 			}
 			else
 			{
@@ -383,7 +387,9 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 			}
 			//Update the point continuously
 
+			cout << instruments.size() << endl;
 		}
+		checkProximity(instruments);
 		//detectDistanceLoopToVial(instruments, frame);
 		aruco::drawDetectedMarkers(frame, markerCorners, markerIds); 
 		//cout << instruments.size() << endl; 
@@ -460,7 +466,7 @@ int main(char argv, char** argc)
 	//livestreamCameraCalibration(cameraMatrix, distanceCoefficients);
 	loadCameraCalibration("CalibrationInfo", cameraMatrix, distanceCoefficients);
 
-	startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimensionSecondSet);
+	startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
 	//simulatingStateMachine();
 
 	return 0;
