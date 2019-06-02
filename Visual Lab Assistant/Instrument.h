@@ -14,7 +14,7 @@ public:
 	InstrState state;
 	cv::Point coordinates; //where on the screen the marker is located
 	cv::Vec3d threeDimCoordinates;
-	
+	 
 	enum instrType {
 		LOOP = 0,
 		EPENDORPH = 1,
@@ -32,7 +32,7 @@ public:
 
 	void react(Instrument* target);
 	bool madeContact(Instrument* instA);
-	 
+	void assignType(int id);
 
 	Instrument(int id, cv::Vec3d markerCenterCoord);
 	~Instrument();

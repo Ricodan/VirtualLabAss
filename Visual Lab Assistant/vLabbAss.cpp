@@ -310,32 +310,31 @@ bool alreadyScanned(vector<Instrument*> instruments, int id)
 }
 
 
-
+//MAKE THIS RETURN INT WHICH CORRESPONDS TO THE DISPATCH TO SEND
 void checkProximity(vector<Instrument*> instruments)
 {
  
-	Instrument * current;
+	Instrument * loop;
 	Instrument * target;
- 
-	for (int i = 0; i < instruments.size() ; i++) 
+	
+	loop = instruments[0];
+
+	if (instruments.size() > 1)
 	{
-		if (instruments.size() > 1) // I hope this is correct now
-		{ 
-			for (int j = i +1 ; j < instruments.size(); j++)
+		for (int i = 1; i < instruments.size() ; i++) 
+		{
+		
+			target = instruments[i];
+			if (loop->madeContact(target)) // gotta test this, check if it reacts appropriately.
 			{
-				current = instruments[i];
-				target = instruments[j];
-				// THE LATEST UPDATED POSITIONS ARE THE ONES THAT REMAIN IN THE CLASS MEMBER
-				// WHEN THE INSTRUMENT LEAVES THE SCREEN.
-				if (current->madeContact(target)) // gotta test this, check if it reacts appropriately.
-				{
-					cout << "Contact" << endl;
-					cout << current->arucoId << " Has made contact with " << target->arucoId << endl;
-					//(*it)->react(*its);
-				}
-		 	}
+				cout << "Contact" << endl;
+				cout << loop->arucoId << " Has made contact with " << target->arucoId << endl;
+				loop->react(target);
+			}
+		
 		}
 	}
+
 	//Iterate through the instruments list
 		//calculate distance to other instruments in the shortenedInstrList
 			//If contanct then react(currentInstrument, targetInstrument)
@@ -348,16 +347,17 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
  	vector<int> markerIds;
 	vector<vector<Point2f>> markerCorners, rejectedCandidates;
 	aruco::DetectorParameters paramters;
-	Ptr< aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
- 	vector<Instrument*> instruments; //Part of the object creation loop
-	vector<Vec3d> rotationVectors, translationVectors;
+	Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
+ 	vector<Vec3d> rotationVectors, translationVectors;
+	vector<int> acceptableInstruments = {0, 15}; //Only add these instruments to the list of instruments
+	vector<Instrument*> instruments; //Part of the object creation loop
+	Protocol::start();
 	VideoCapture vid(0);
 	 
-	if (!vid.isOpened())
-	{
-		return -1;
-	}
+	if (!vid.isOpened()) { return -1;}
 	namedWindow("Webcam", WINDOW_AUTOSIZE);
+
+	//Need to ensure that the loop is always the first element.
 
 	while (true) //Basically the main loop of when the camera is running. 
 	{
@@ -366,34 +366,40 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 
 		aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
 		aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimensions, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
-
-		//vector<Vec3d> twoPoints;
+				 
 		for (int i = 0; i < markerIds.size(); i++)
 		{
 			aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
-			
-			//I don't remember which function is more appropiate if this or getAruco3dCentercoords()
 			//Vec3d initPoint = getAruco3dCenterCoords(arucoSquareDimensions, rotationVectors[i], translationVectors[i]);
 			//tipOfLoop(frame, translationVectors[i], rotationVectors[i], translationVectors[i], cameraMatrix, distanceCoefficients);
 			if(!alreadyScanned(instruments, markerIds[i])) // redefine to take pointers and not actual objects
 			{
-				//Using smart pointer I think.
-				instruments.push_back( new Instrument(markerIds[i], translationVectors[i]) );
-				//cout << current.arucoId << endl;
+				if (markerIds[i] == 0)
+				{ //Trying to make sure that the first instrument is always the loop.
+					instruments.insert(instruments.begin(), new Instrument(markerIds[i], translationVectors[i]));
+				}
+				else
+				{
+					if (find (acceptableInstruments.begin(), acceptableInstruments.end(), markerIds[i])!= acceptableInstruments.end()) 
+					{
+						instruments.push_back(new Instrument(markerIds[i], translationVectors[i]));
+					}
+				}
 			}
 			else
 			{
 				instruments[i]->threeDimCoordinates = translationVectors[i];
 			}
-			//Update the point continuously
-
-			cout << instruments.size() << endl;
+			 //cout << instruments.size() << endl;
 		}
-		checkProximity(instruments);
-		//detectDistanceLoopToVial(instruments, frame);
-		aruco::drawDetectedMarkers(frame, markerCorners, markerIds); 
-		//cout << instruments.size() << endl; 
-	
+
+		if (instruments.size() > 0) { 
+			//MAKE THIS RETURN INT AND BASED ON THE RETURN VALUE, THE CORRECT STATE MACHINE DISPATCH IS SENT
+			checkProximity(instruments);
+		}
+		
+ 		aruco::drawDetectedMarkers(frame, markerCorners, markerIds); 
+
 		imshow("Webcam", frame);
 		if (waitKey(30) >= 0) break;
 
