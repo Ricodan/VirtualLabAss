@@ -299,6 +299,16 @@ Point3d tipOfLoop(Mat& frame, Vec3d initPoint, Vec3d rvec, Vec3d tvec, const Mat
 	return tipOfLoop;
 }
 
+void drawTipOfLoopAndBurner(Mat& frame, Mat camMatrix, Mat distCoeff, vector<Point3d> objPoints)
+{
+	//vector<Point3d> objPoints;
+	vector<Point2d> imgPoints;
+		
+	projectPoints(objPoints, Vec3d(0, 0, 0), Vec3d(0, 0, 0), camMatrix, distCoeff, imgPoints);
+	line(frame, imgPoints[0], imgPoints[1], Scalar(0, 255, 255), 1, 1);
+	circle(frame, imgPoints[1], 5, Scalar(0, 0, 255), 0.2);
+}
+
 bool alreadyScanned(vector<Instrument*> instruments, int id)
 {
 	for (vector<Instrument *>::iterator it = instruments.begin(); it != instruments.end(); ++it)
@@ -311,13 +321,14 @@ bool alreadyScanned(vector<Instrument*> instruments, int id)
 
 
 //MAKE THIS RETURN INT WHICH CORRESPONDS TO THE DISPATCH TO SEND
-void checkProximity(vector<Instrument*> instruments)
+void checkProximity(vector<Instrument*> instruments, Protocol& protocol)
 {
  
 	Instrument * loop;
 	Instrument * target;
 	
 	loop = instruments[0];
+	//loop->createPointOfLoop();
 
 	if (instruments.size() > 1)
 	{
@@ -329,11 +340,12 @@ void checkProximity(vector<Instrument*> instruments)
 			{
 				cout << "Contact" << endl;
 				cout << loop->arucoId << " Has made contact with " << target->arucoId << endl;
-				loop->react(target);
+				loop->react(target, protocol);
 			}
 		
 		}
 	}
+
 
 	//Iterate through the instruments list
 		//calculate distance to other instruments in the shortenedInstrList
@@ -351,9 +363,15 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
  	vector<Vec3d> rotationVectors, translationVectors;
 	vector<int> acceptableInstruments = {0, 15}; //Only add these instruments to the list of instruments
 	vector<Instrument*> instruments; //Part of the object creation loop
-	Protocol::start();
+	
+	vector<Point3d> objectPoints = {Point3d(0,0,0), Point3d(0,0,0)};
+	
 	VideoCapture vid(0);
-	 
+
+	//Protocol::start();
+	Protocol currentProt;
+	currentProt.start(); //Trying with this. 
+
 	if (!vid.isOpened()) { return -1;}
 	namedWindow("Webcam", WINDOW_AUTOSIZE);
 
@@ -376,35 +394,48 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 			{
 				if (markerIds[i] == 0)
 				{ //Trying to make sure that the first instrument is always the loop.
-					instruments.insert(instruments.begin(), new Instrument(markerIds[i], translationVectors[i]));
+					instruments.insert(instruments.begin(), new Instrument(markerIds[i], translationVectors[i], cameraMatrix, distanceCoefficients));
 				}
-				else
+				else if (find (acceptableInstruments.begin(), acceptableInstruments.end(), markerIds[i])!= acceptableInstruments.end()) 
 				{
-					if (find (acceptableInstruments.begin(), acceptableInstruments.end(), markerIds[i])!= acceptableInstruments.end()) 
-					{
-						instruments.push_back(new Instrument(markerIds[i], translationVectors[i]));
-					}
+					instruments.push_back(new Instrument(markerIds[i], translationVectors[i], cameraMatrix, distanceCoefficients));
 				}
 			}
 			else
-			{
+			{ // there are more markerIds than instruments this bug appears sometimes.
 				instruments[i]->threeDimCoordinates = translationVectors[i];
+
+				if (markerIds[i] == 0)  //The loop and Bunsen burner require these values
+				{ 
+				instruments[i]->rotationVec = rotationVectors[i]; 
+				instruments[i]->translationVec = translationVectors[i];
+				Point3d threeDimCoordinatesDouble;
+				threeDimCoordinatesDouble.x = instruments[i]->threeDimCoordinates[0];
+				threeDimCoordinatesDouble.y = instruments[i]->threeDimCoordinates[1];
+				threeDimCoordinatesDouble.z = instruments[i]->threeDimCoordinates[2];
+				instruments[i]->createPointOfLoop();
+
+				objectPoints[0] = threeDimCoordinatesDouble;
+				objectPoints[1] = instruments[i]->loopTip;
+
+				drawTipOfLoopAndBurner(frame, cameraMatrix, distanceCoefficients, objectPoints);
+
+				}
 			}
-			 //cout << instruments.size() << endl;
 		}
 
-		if (instruments.size() > 0) { 
-			//MAKE THIS RETURN INT AND BASED ON THE RETURN VALUE, THE CORRECT STATE MACHINE DISPATCH IS SENT
-			checkProximity(instruments);
+		if (instruments.size() > 1) 
+		{ 
+			checkProximity(instruments, currentProt);
+			currentProt.current_state_ptr->myState(); //This seems to be working
 		}
 		
  		aruco::drawDetectedMarkers(frame, markerCorners, markerIds); 
-
+		
+	
 		imshow("Webcam", frame);
 		if (waitKey(30) >= 0) break;
-
 	}
-
 
 	return 1;
 }
