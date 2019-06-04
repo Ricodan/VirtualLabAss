@@ -14,7 +14,7 @@ public:
 	int arucoId;
 	InstrState state;
 	cv::Point coordinates; //where on the screen the marker is located
-	cv::Vec3d threeDimCoordinates;
+	cv::Point3d threeDimCoordinates;
 	cv::Point3d loopTip;
 	cv::Point3d flameTip;
 	cv::Vec3d rotationVec;
@@ -34,7 +34,7 @@ public:
 	void react(Instrument* target, Protocol protocol);
 	bool madeContact(Instrument* instA);
 	void assignType(int id);
-	cv::Point3d createPointOfLoop();
+	void createPointOfLoop();
 
 	Instrument(int id, cv::Vec3d markerCenterCoord, cv::Mat camMat, cv::Mat distCoeff);
 	~Instrument();

@@ -361,14 +361,14 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 	aruco::DetectorParameters paramters;
 	Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
  	vector<Vec3d> rotationVectors, translationVectors;
-	vector<int> acceptableInstruments = {0, 15}; //Only add these instruments to the list of instruments
+	vector<int> acceptableInstruments = {0, 15, 27}; //Only add these instruments to the list of instruments
 	vector<Instrument*> instruments; //Part of the object creation loop
 	
 	vector<Point3d> objectPoints = {Point3d(0,0,0), Point3d(0,0,0)};
 	
 	VideoCapture vid(0);
 
-	//Protocol::start();
+	
 	Protocol currentProt;
 	currentProt.start(); //Trying with this. 
 
@@ -388,13 +388,14 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 		for (int i = 0; i < markerIds.size(); i++)
 		{
 			aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
-			//Vec3d initPoint = getAruco3dCenterCoords(arucoSquareDimensions, rotationVectors[i], translationVectors[i]);
-			//tipOfLoop(frame, translationVectors[i], rotationVectors[i], translationVectors[i], cameraMatrix, distanceCoefficients);
+			
+			
 			if(!alreadyScanned(instruments, markerIds[i])) // redefine to take pointers and not actual objects
 			{
 				if (markerIds[i] == 0)
 				{ //Trying to make sure that the first instrument is always the loop.
 					instruments.insert(instruments.begin(), new Instrument(markerIds[i], translationVectors[i], cameraMatrix, distanceCoefficients));
+					instruments[i]->createPointOfLoop();
 				}
 				else if (find (acceptableInstruments.begin(), acceptableInstruments.end(), markerIds[i])!= acceptableInstruments.end()) 
 				{
@@ -407,36 +408,32 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 
 				if (markerIds[i] == 0)  //The loop and Bunsen burner require these values
 				{ 
-				instruments[i]->rotationVec = rotationVectors[i]; 
-				instruments[i]->translationVec = translationVectors[i];
-				Point3d threeDimCoordinatesDouble;
-				threeDimCoordinatesDouble.x = instruments[i]->threeDimCoordinates[0];
-				threeDimCoordinatesDouble.y = instruments[i]->threeDimCoordinates[1];
-				threeDimCoordinatesDouble.z = instruments[i]->threeDimCoordinates[2];
-				instruments[i]->createPointOfLoop();
+					instruments[i]->rotationVec = rotationVectors[i]; 
+					instruments[i]->translationVec = translationVectors[i];
+			 		instruments[i]->createPointOfLoop();
+					objectPoints[0] = instruments[i]->threeDimCoordinates;
+					objectPoints[1] = instruments[i]->loopTip;
 
-				objectPoints[0] = threeDimCoordinatesDouble;
-				objectPoints[1] = instruments[i]->loopTip;
-
-				drawTipOfLoopAndBurner(frame, cameraMatrix, distanceCoefficients, objectPoints);
-
+					drawTipOfLoopAndBurner(frame, cameraMatrix, distanceCoefficients, objectPoints);
 				}
 			}
+
 		}
+
 
 		if (instruments.size() > 1) 
 		{ 
 			checkProximity(instruments, currentProt);
 			currentProt.current_state_ptr->myState(); //This seems to be working
+			//cout << instruments[0]->threeDimCoordinates << endl;
+			//cout << instruments[1]->threeDimCoordinates << endl;
 		}
 		
  		aruco::drawDetectedMarkers(frame, markerCorners, markerIds); 
 		
-	
 		imshow("Webcam", frame);
 		if (waitKey(30) >= 0) break;
 	}
-
 	return 1;
 }
 

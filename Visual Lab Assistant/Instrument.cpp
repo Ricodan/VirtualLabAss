@@ -38,13 +38,10 @@ void Instrument::assignType(int id)
 	}
 }
 
-cv::Point3d Instrument::createPointOfLoop()
+void Instrument::createPointOfLoop()
 {
-	std::vector<Point3d> objPoints;
-	std::vector<Point2d> imgPoints;
 	Point3d centerPoint3d = this->threeDimCoordinates;
 	Point3d tipOfLoop = centerPoint3d;
-	objPoints.push_back(centerPoint3d);
 
 	//Projection of the point where the tip ought to be.
 	Mat rotMat;
@@ -53,15 +50,9 @@ cv::Point3d Instrument::createPointOfLoop()
 	double* tmp = rotMatTpose.ptr<double>(0);
 	Point3d camWorldE(tmp[0] * 0.108, tmp[1] * 0.108, tmp[2] * 0.108);
 	tipOfLoop += camWorldE;
-	objPoints.push_back(tipOfLoop);
 	//End of point projection code
-
-	//It works after setting the rvec and tvec to (0,0,0). I don't really know why.
-	//projectPoints(objPoints, Vec3d(0, 0, 0), Vec3d(0, 0, 0), this->cameraMatrix, this->distanceCoefficients, imgPoints);
 	
 	this->loopTip = tipOfLoop;
-
-	return tipOfLoop;
 }
 
 void Instrument::react(Instrument* target, Protocol protocol)
@@ -85,16 +76,18 @@ void Instrument::react(Instrument* target, Protocol protocol)
 
 }
 
-double euclideanDistToInst(cv::Vec3d pointA, cv::Vec3d pointB)
+double euclideanDistToInst(cv::Point3d pointA, cv::Point3d pointB)
 {
-	double dist = sqrt(pow(pointA[0] - pointB[0], 2) + pow(pointA[1] - pointB[1], 2) + pow(pointA[2] - pointB[2], 2));
+	double dist = sqrt(pow(pointA.x - pointB.x, 2) + pow(pointA.y - pointB.y, 2) + pow(pointA.z - pointB.z, 2));
 	return dist;
 
 }
 
+//It is assumed that only the loop will be making contact with other things.  
 bool Instrument::madeContact(Instrument* instA)
 {
 	double distance = euclideanDistToInst(this->loopTip, instA->threeDimCoordinates);
+	std::cout << distance << std::endl;
 	if (distance < 0.01) //The distance is set to react at when there's a centimeter of distance
 	{
 		return true;
