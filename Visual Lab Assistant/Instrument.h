@@ -40,6 +40,7 @@ public:
 	~Instrument();
 
 private:
+	bool hasDisengaged = true; //activates when the instrument is separated from the target instrument
 	cv::Mat cameraMatrix;
 	cv::Mat distanceCoefficients;
 

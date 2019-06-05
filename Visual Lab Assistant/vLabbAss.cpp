@@ -190,9 +190,18 @@ void showCoordsAtPos(Mat& frame, /*String string,*/ Point position, Vec3d tvec)
 	ostringstream oCoordsString;
 	oCoordsString << "MARKER Position x=" << tvec[0] << "y=" << tvec[1] << "z=" << tvec[2];
 	string coordsString = oCoordsString.str();
-	putText(frame, coordsString, position, FONT_HERSHEY_COMPLEX_SMALL, 0.5, Scalar(0, 155, 135));
+	putText(frame, coordsString, position, FONT_HERSHEY_PLAIN, 0.5, Scalar(0, 155, 135));
 }
 
+void screenText(Mat& frame, string inString)
+{
+	//The line below is how I was calling this function from the loop in startWebcamMonitoring
+	//showCoordsAtPos(frame, Point(markerCorners[i][2].x, markerCorners[i][2].y), translationVectors[i]);
+	ostringstream oString;
+	oString << inString;
+	string outString = oString.str();
+	putText(frame, outString, Point(10, 400), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 255, 150));
+}
 
 //void instrumentScan(vector<Instrument>& instruments, int id)
 //{
@@ -321,9 +330,9 @@ bool alreadyScanned(vector<Instrument*> instruments, int id)
 
 
 //MAKE THIS RETURN INT WHICH CORRESPONDS TO THE DISPATCH TO SEND
-void checkProximity(vector<Instrument*> instruments, Protocol& protocol)
+void checkProximity(vector<Instrument*> instruments, Protocol& protocol, int* counter)
 {
- 
+	//Try first without regard for which instrument on is reacting with. 	 
 	Instrument * loop;
 	Instrument * target;
 	
@@ -334,19 +343,16 @@ void checkProximity(vector<Instrument*> instruments, Protocol& protocol)
 	{
 		for (int i = 1; i < instruments.size() ; i++) 
 		{
-		
 			target = instruments[i];
 			if (loop->madeContact(target)) // gotta test this, check if it reacts appropriately.
 			{
 				cout << "Contact" << endl;
 				cout << loop->arucoId << " Has made contact with " << target->arucoId << endl;
 				loop->react(target, protocol);
+				
 			}
-		
 		}
 	}
-
-
 	//Iterate through the instruments list
 		//calculate distance to other instruments in the shortenedInstrList
 			//If contanct then react(currentInstrument, targetInstrument)
@@ -355,6 +361,9 @@ void checkProximity(vector<Instrument*> instruments, Protocol& protocol)
 
 int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimensions)
 {
+	bool* inCurrentProcess;
+	int counter = 0;
+	int* counterPtr =&counter;
 	Mat frame;
  	vector<int> markerIds;
 	vector<vector<Point2f>> markerCorners, rejectedCandidates;
@@ -417,20 +426,20 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 					drawTipOfLoopAndBurner(frame, cameraMatrix, distanceCoefficients, objectPoints);
 				}
 			}
-
 		}
 
 
 		if (instruments.size() > 1) 
 		{ 
-			checkProximity(instruments, currentProt);
+			checkProximity(instruments, currentProt, counterPtr);
 			currentProt.current_state_ptr->myState(); //This seems to be working
 			//cout << instruments[0]->threeDimCoordinates << endl;
 			//cout << instruments[1]->threeDimCoordinates << endl;
 		}
 		
  		aruco::drawDetectedMarkers(frame, markerCorners, markerIds); 
-		
+		screenText(frame, currentProt.current_state_ptr->myState() );
+
 		imshow("Webcam", frame);
 		if (waitKey(30) >= 0) break;
 	}

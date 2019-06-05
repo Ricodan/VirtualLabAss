@@ -51,9 +51,10 @@ class Clean : public Protocol
 	}
 
 
-	void myState()
+	string myState()
 	{
 		cout << "Clean" << endl;
+		return "Clean";
 	}
 };
 
@@ -97,9 +98,10 @@ class InterClean : public Protocol
 
 	}
 
-	void myState()
+	string myState()
 	{
 		cout << "InterClean" << endl;
+		return "InterClean";
 	}
 
 };
@@ -123,9 +125,10 @@ class PostStreak : public Protocol
 		transit<End>();
 	}
 
-	void myState()
+	string myState()
 	{
 		cout << "PostStreak" << endl;
+		return "PostStreak";
 	}
 };
 
@@ -148,9 +151,10 @@ class PreStreak : public Protocol
 		transit<Clean>();
 	}
 		
-	void myState()
+	string myState()
 	{
 		cout << "PreStreak" << endl;
+		return "PreStreak";
 	}
 };
 
@@ -166,9 +170,10 @@ class Spoiled : public Protocol
 		transit<Clean>();
 
 	}
-	void myState()
+	string myState()
 	{
 		cout << "Spoiled" << endl;
+		return "Spoiled";
 	}
 
 };
@@ -208,9 +213,10 @@ void Protocol::react(Soil const &)
 		 
 }
 
-void Protocol::myState()
+string Protocol::myState()
 {
 	cout << "Base State" << endl;
+	return "Base State";
 }
 
 //void Protocol::react(tinyfsm::Event const &) 

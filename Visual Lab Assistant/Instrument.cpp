@@ -57,21 +57,26 @@ void Instrument::createPointOfLoop()
 
 void Instrument::react(Instrument* target, Protocol protocol)
 {
- 	
-	if (target->iType == EPENDORPH)
+	if (this->hasDisengaged == true)
 	{
-		std::cout << "Reacted with Ependorph tube" << std::endl;
-		protocol.dispatch(LoopDippedInVial());
-	}
-	else if (target->iType == BURNER)
-	{
-		std::cout << "Reacted with Bunsen Burner" << std::endl;
-		protocol.dispatch(LoopSterilize());
-	}
-	else if (target->iType == PETRI)
-	{
-		std::cout << "Reacted with Petri dish" << std::endl;
-		protocol.dispatch(Streak());
+		if (target->iType == EPENDORPH)
+		{
+			std::cout << "Reacted with Ependorph tube" << std::endl;
+			protocol.dispatch(LoopDippedInVial());
+			this->hasDisengaged = false;
+		}
+		else if (target->iType == BURNER)
+		{
+			std::cout << "Reacted with Bunsen Burner" << std::endl;
+			protocol.dispatch(LoopSterilize());
+			this->hasDisengaged = false;
+		}
+		else if (target->iType == PETRI)
+		{
+			std::cout << "Reacted with Petri dish" << std::endl;
+			protocol.dispatch(Streak());
+			this->hasDisengaged = false;
+		}
 	}
 
 }
@@ -86,11 +91,16 @@ double euclideanDistToInst(cv::Point3d pointA, cv::Point3d pointB)
 //It is assumed that only the loop will be making contact with other things.  
 bool Instrument::madeContact(Instrument* instA)
 {
-	double distance = euclideanDistToInst(this->loopTip, instA->threeDimCoordinates);
+	double distance = euclideanDistToInst(this->threeDimCoordinates, instA->threeDimCoordinates);
 	std::cout << distance << std::endl;
-	if (distance < 0.01) //The distance is set to react at when there's a centimeter of distance
+	if (distance < 0.03) //The distance is set to react at when there's a centimeter of distance
 	{
 		return true;
+	}
+	else if (distance > 0.1)
+	{
+		std::cout << "Is disengaged True" << endl;
+		this->hasDisengaged = true;
 	}
 	return false;
 }
