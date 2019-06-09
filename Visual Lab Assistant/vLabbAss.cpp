@@ -17,6 +17,7 @@
 #include <sstream>
 #include <iostream>
 #include <fstream>
+#include <map>
 
 using namespace std;
 using namespace cv;
@@ -346,10 +347,19 @@ void checkProximity(vector<Instrument*> instruments, Protocol& protocol, int* co
 			target = instruments[i];
 			if (loop->madeContact(target)) // gotta test this, check if it reacts appropriately.
 			{
-				cout << "Contact" << endl;
+				//cout << "Contact" << endl;
 				cout << loop->arucoId << " Has made contact with " << target->arucoId << endl;
-				loop->react(target, protocol);
-				
+				*counter += 1;
+				if (*counter > 10)
+				{
+					cout << "Ract Called" << endl;
+					loop->react(target, protocol);
+					*counter = 0;
+				}
+			}
+			else
+			{
+				*counter = 0;
 			}
 		}
 	}
@@ -359,8 +369,164 @@ void checkProximity(vector<Instrument*> instruments, Protocol& protocol, int* co
 		//just continue if nothing
 }
 
+struct instrumentData
+{
+	//int arucoMarkerId; This will be the key
+	Instrument* instrument;
+	Vec3d rvec, tvec;
+};
+
+void checkProximityMap(map<int, instrumentData*>* instrumentsMap, Protocol& protocol, int* counter)
+{
+	//Try first without regard for which instrument on is reacting with. 	 
+	instrumentData* loop;
+	instrumentData* target;
+
+	loop = (*instrumentsMap)[0];  
+	//loop->createPointOfLoop();
+	cout << loop->instrument->arucoId << endl;
+
+	for (auto const& inst : (*instrumentsMap)) //Perhaps this is the problem 
+	{
+		if(inst.first != 0)
+		{
+			target = inst.second; //This will contain instrument info, but not the key
+			 
+			cout << target->instrument->arucoId << endl;
+			if (loop->instrument->madeContact(target->instrument)) // Here it fucks up
+			{
+				cout << "Contact" << endl;
+				cout << loop->instrument->arucoId << " Has made contact with " << target->instrument->arucoId << endl;
+				*counter += 1;
+				if (*counter > 10)
+				{
+					cout << "React Called" << endl; 
+					//loop->instrument->react(target->instrument, protocol);
+					*counter = 0;
+				}
+			}
+			else
+			{
+				*counter = 0;
+			}
+		}
+	}
+	
+	//Iterate through the instruments list
+	//calculate distance to other instruments in the shortenedInstrList
+	//If contanct then react(currentInstrument, targetInstrument)
+	//just continue if nothing
+}
+
+void storeMarkersMap(map<int, instrumentData*>* markerMap, vector<int> markerIds, vector<Vec3d> rotationVectors, vector<Vec3d> translationVectors, Mat cameraMatrix, Mat distanceCoefficients)
+{
+	//Most of the time the ids will already exist, so better to optimize for that
+	//Find indexes of undesired markers detected and remove the equivalent elements at the same index from other instruments. 
+	 
+
+	for (int i = 0; i < markerIds.size(); i++)
+	{
+		int key = markerIds[i];
+		cout << "Key: " << key << endl;
+		//auto iter = markerMap->find(markerIds[i]);
+		//cout << markerMap->count(markerIds[i]) << endl;
+		if (markerMap->count(markerIds[i]) > 0)
+		{	// key  exists, do something with iter->second (the value)
+						 
+			//iter->second->rvec = rotationVectors[i];
+			//iter->second->tvec = translationVectors[i];
+		 	(*markerMap)[key]->rvec = rotationVectors[i];
+			(*markerMap)[key]->tvec = translationVectors[i];
+			(*markerMap)[key]->instrument->threeDimCoordinates = translationVectors[i];
+		}
+		else
+		{ // Create new instrument, but only if allowed if a disallowed element, then hop over the index.
+			cout << "Created new instrument" << endl;
+			//Use insert instead of the subscript operator
+			instrumentData* newInst = new instrumentData{ new Instrument(markerIds[i], translationVectors[i], cameraMatrix, distanceCoefficients),
+				rotationVectors[i], translationVectors[i]};
+			markerMap->insert(map<int, instrumentData*>::value_type(key, newInst));
+			newInst->instrument->threeDimCoordinates = translationVectors[i];
+			 
+
+			/*newInst->instrument = new Instrument(markerIds[i], translationVectors[i], cameraMatrix, distanceCoefficients);
+			newInst->rvec = rotationVectors[i];
+			newInst->tvec = translationVectors[i];*/
+			/*(*markerMap)[key] = &newInst;
+			(*markerMap)[key]->instrument = new Instrument(markerIds[i], translationVectors[i], cameraMatrix, distanceCoefficients);
+			(*markerMap)[key]->rvec = rotationVectors[i];
+			(*markerMap)[key]->tvec = translationVectors[i];*/
+			cout << "Created" << (*markerMap)[key]->instrument->arucoId << endl; //see if this assignment already fucks up
+		}
+	}
+}
+
+int mainFlow(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimensions)
+{
+	map< int, instrumentData*> instrumentMap;
+	//IMPLEMENT THIS FUNCTION USING A MAP INSTEAD
+
+	bool* inCurrentProcess;
+	int counter = 0;
+	int* counterPtr = &counter;
+	Mat frame;
+	vector<int> markerIds;
+	vector<vector<Point2f>> markerCorners, rejectedCandidates;
+	aruco::DetectorParameters paramters;
+	Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
+	vector<Vec3d> rotationVectors, translationVectors;
+	vector<int> acceptableInstruments = { 0, 15, 27 }; //Only add these instruments to the list of instruments
+	vector<Instrument*> instruments; //Part of the object creation loop
+	vector<Point3d> objectPoints = { Point3d(0,0,0), Point3d(0,0,0) };
+	VideoCapture vid(0);
+
+	Protocol currentProt;
+	currentProt.start(); //Trying with this. 
+
+	if (!vid.isOpened()) { return -1; }
+	namedWindow("Webcam", WINDOW_AUTOSIZE);
+
+	//Initiliazing with the loop already in the hashMap
+	instrumentData loop;
+	loop.instrument = new Instrument(0, Vec3d(0, 0, 0), cameraMatrix, distanceCoefficients);
+	instrumentMap[0] = &loop;
+
+	while (true) //Basically the main loop of when the camera is running. 
+	{
+		if (!vid.read(frame))
+			break;
+
+		aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
+		aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimensions, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
+
+		storeMarkersMap(&instrumentMap, markerIds, rotationVectors, translationVectors, cameraMatrix, distanceCoefficients);
+		cout << "Exited storeMarkersMap and going into checkProximity()" << endl;
+
+		checkProximityMap(&instrumentMap, currentProt, &counter);
+
+		//aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
+	
+		/*
+					instruments[i]->createPointOfLoop();
+					objectPoints[0] = instruments[i]->threeDimCoordinates;
+					objectPoints[1] = instruments[i]->loopTip;
+
+					drawTipOfLoopAndBurner(frame, cameraMatrix, distanceCoefficients, objectPoints);
+		*/
+		
+		aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
+		screenText(frame, currentProt.current_state_ptr->myState());
+
+		cv::imshow("Webcam", frame);
+		if (waitKey(30) >= 0) break;
+	}
+	return 1;
+}
+
+
 int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimensions)
 {
+
 	bool* inCurrentProcess;
 	int counter = 0;
 	int* counterPtr =&counter;
@@ -396,7 +562,7 @@ int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficien
 				 
 		for (int i = 0; i < markerIds.size(); i++)
 		{
-			aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
+			//aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
 			
 			
 			if(!alreadyScanned(instruments, markerIds[i])) // redefine to take pointers and not actual objects
@@ -509,7 +675,8 @@ int main(char argv, char** argc)
 	//livestreamCameraCalibration(cameraMatrix, distanceCoefficients);
 	loadCameraCalibration("CalibrationInfo", cameraMatrix, distanceCoefficients);
 
-	startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
+	//startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
+	mainFlow(cameraMatrix, distanceCoefficients, arucoSquareDimension);
 	//simulatingStateMachine();
 
 	return 0;

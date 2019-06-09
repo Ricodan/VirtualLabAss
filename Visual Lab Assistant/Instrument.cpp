@@ -55,9 +55,15 @@ void Instrument::createPointOfLoop()
 	this->loopTip = tipOfLoop;
 }
 
+double euclideanDistToInst(cv::Point3d pointA, cv::Point3d pointB)
+{
+	double dist = sqrt(pow(pointA.x - pointB.x, 2) + pow(pointA.y - pointB.y, 2) + pow(pointA.z - pointB.z, 2));
+	return dist;
+}
+
 void Instrument::react(Instrument* target, Protocol protocol)
 {
-	if (this->hasDisengaged == true)
+	if (target->hasDisengaged == true)
 	{
 		if (target->iType == EPENDORPH)
 		{
@@ -78,29 +84,24 @@ void Instrument::react(Instrument* target, Protocol protocol)
 			this->hasDisengaged = false;
 		}
 	}
-
 }
 
-double euclideanDistToInst(cv::Point3d pointA, cv::Point3d pointB)
-{
-	double dist = sqrt(pow(pointA.x - pointB.x, 2) + pow(pointA.y - pointB.y, 2) + pow(pointA.z - pointB.z, 2));
-	return dist;
 
-}
 
 //It is assumed that only the loop will be making contact with other things.  
 bool Instrument::madeContact(Instrument* instA)
 {
 	double distance = euclideanDistToInst(this->threeDimCoordinates, instA->threeDimCoordinates);
-	std::cout << distance << std::endl;
+	std::cout << "distance " << this->arucoId << " to " << instA->arucoId << " " << distance << std::endl;
 	if (distance < 0.03) //The distance is set to react at when there's a centimeter of distance
 	{
+		instA->hasDisengaged = true;
 		return true;
 	}
 	else if (distance > 0.1)
 	{
 		std::cout << "Is disengaged True" << endl;
-		this->hasDisengaged = true;
+		instA->hasDisengaged = true;
 	}
 	return false;
 }

@@ -1,8 +1,7 @@
 #pragma once
 #include "opencv2/core.hpp"
 #include "opencv2/opencv.hpp"
- 
-#include "InstrState.h"
+
 #include "Protocol.h"
 
 #include <stdint.h>
@@ -12,7 +11,6 @@ class Instrument
 {
 public:
 	int arucoId;
-	InstrState state;
 	cv::Point coordinates; //where on the screen the marker is located
 	cv::Point3d threeDimCoordinates;
 	cv::Point3d loopTip;
