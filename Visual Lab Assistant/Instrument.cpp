@@ -69,19 +69,19 @@ void Instrument::react(Instrument* target, Protocol protocol)
 		{
 			std::cout << "Reacted with Ependorph tube" << std::endl;
 			protocol.dispatch(LoopDippedInVial());
-			this->hasDisengaged = false;
+			target->hasDisengaged = false;
 		}
 		else if (target->iType == BURNER)
 		{
 			std::cout << "Reacted with Bunsen Burner" << std::endl;
 			protocol.dispatch(LoopSterilize());
-			this->hasDisengaged = false;
+			target->hasDisengaged = false;
 		}
 		else if (target->iType == PETRI)
 		{
 			std::cout << "Reacted with Petri dish" << std::endl;
 			protocol.dispatch(Streak());
-			this->hasDisengaged = false;
+			target->hasDisengaged = false;
 		}
 	}
 }
@@ -91,14 +91,14 @@ void Instrument::react(Instrument* target, Protocol protocol)
 //It is assumed that only the loop will be making contact with other things.  
 bool Instrument::madeContact(Instrument* instA)
 {
+	/*this->createPointOfLoop();*/
 	double distance = euclideanDistToInst(this->threeDimCoordinates, instA->threeDimCoordinates);
 	std::cout << "distance " << this->arucoId << " to " << instA->arucoId << " " << distance << std::endl;
-	if (distance < 0.03) //The distance is set to react at when there's a centimeter of distance
+	if (distance < 0.05) //The distance is set to react at when there's a centimeter of distance
 	{
-		instA->hasDisengaged = true;
 		return true;
 	}
-	else if (distance > 0.1)
+	else if (distance > 0.2)
 	{
 		std::cout << "Is disengaged True" << endl;
 		instA->hasDisengaged = true;

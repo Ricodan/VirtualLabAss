@@ -17,6 +17,7 @@ public:
 	cv::Point3d flameTip;
 	cv::Vec3d rotationVec;
 	cv::Vec3d translationVec;
+	bool hasDisengaged = true;
 
 	enum instrType {
 		LOOP = 0,
@@ -38,7 +39,7 @@ public:
 	~Instrument();
 
 private:
-	bool hasDisengaged = true; //activates when the instrument is separated from the target instrument
+	 //activates when the instrument is separated from the target instrument
 	cv::Mat cameraMatrix;
 	cv::Mat distanceCoefficients;
 

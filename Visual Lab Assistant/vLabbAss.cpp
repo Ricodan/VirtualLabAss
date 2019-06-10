@@ -374,40 +374,42 @@ struct instrumentData
 	//int arucoMarkerId; This will be the key
 	Instrument* instrument;
 	Vec3d rvec, tvec;
+	int* counter = new int(0);
 };
 
-void checkProximityMap(map<int, instrumentData*>* instrumentsMap, Protocol& protocol, int* counter)
+void checkProximityMap(map<int, instrumentData*>* instrumentsMap, Protocol& protocol)
 {
 	//Try first without regard for which instrument on is reacting with. 	 
 	instrumentData* loop;
 	instrumentData* target;
 
-	loop = (*instrumentsMap)[0];  
+	loop = (*instrumentsMap)[0]; 
+	loop->instrument->createPointOfLoop();
 	//loop->createPointOfLoop();
-	cout << loop->instrument->arucoId << endl;
-
+	
 	for (auto const& inst : (*instrumentsMap)) //Perhaps this is the problem 
 	{
 		if(inst.first != 0)
 		{
 			target = inst.second; //This will contain instrument info, but not the key
-			 
-			cout << target->instrument->arucoId << endl;
+		
 			if (loop->instrument->madeContact(target->instrument)) // Here it fucks up
 			{
-				cout << "Contact" << endl;
 				cout << loop->instrument->arucoId << " Has made contact with " << target->instrument->arucoId << endl;
-				*counter += 1;
-				if (*counter > 10)
+				*(target->counter) += 1;
+				cout << "Counter: " << *(target->counter) << endl;
+				
+				//This thingis false for too long
+
+				if (*(target->counter) > 6 && target->instrument->hasDisengaged == true)
 				{
-					cout << "React Called" << endl; 
-					//loop->instrument->react(target->instrument, protocol);
-					*counter = 0;
+					loop->instrument->react(target->instrument, protocol);
+					*(target->counter) = 0;
 				}
 			}
 			else
 			{
-				*counter = 0;
+				*(target->counter) = 0;
 			}
 		}
 	}
@@ -418,45 +420,38 @@ void checkProximityMap(map<int, instrumentData*>* instrumentsMap, Protocol& prot
 	//just continue if nothing
 }
 
-void storeMarkersMap(map<int, instrumentData*>* markerMap, vector<int> markerIds, vector<Vec3d> rotationVectors, vector<Vec3d> translationVectors, Mat cameraMatrix, Mat distanceCoefficients)
+void storeMarkersMap(map<int, instrumentData*>* markerMap, vector<int> markerIds, vector<int> acceptableInstruments, vector<Vec3d> rotationVectors, vector<Vec3d> translationVectors, Mat cameraMatrix, Mat distanceCoefficients)
 {
 	//Most of the time the ids will already exist, so better to optimize for that
 	//Find indexes of undesired markers detected and remove the equivalent elements at the same index from other instruments. 
-	 
 
 	for (int i = 0; i < markerIds.size(); i++)
 	{
 		int key = markerIds[i];
-		cout << "Key: " << key << endl;
+		//cout << "Key: " << key << endl;
 		//auto iter = markerMap->find(markerIds[i]);
 		//cout << markerMap->count(markerIds[i]) << endl;
-		if (markerMap->count(markerIds[i]) > 0)
-		{	// key  exists, do something with iter->second (the value)
-						 
-			//iter->second->rvec = rotationVectors[i];
-			//iter->second->tvec = translationVectors[i];
-		 	(*markerMap)[key]->rvec = rotationVectors[i];
-			(*markerMap)[key]->tvec = translationVectors[i];
-			(*markerMap)[key]->instrument->threeDimCoordinates = translationVectors[i];
-		}
-		else
-		{ // Create new instrument, but only if allowed if a disallowed element, then hop over the index.
-			cout << "Created new instrument" << endl;
-			//Use insert instead of the subscript operator
-			instrumentData* newInst = new instrumentData{ new Instrument(markerIds[i], translationVectors[i], cameraMatrix, distanceCoefficients),
-				rotationVectors[i], translationVectors[i]};
-			markerMap->insert(map<int, instrumentData*>::value_type(key, newInst));
-			newInst->instrument->threeDimCoordinates = translationVectors[i];
-			 
 
-			/*newInst->instrument = new Instrument(markerIds[i], translationVectors[i], cameraMatrix, distanceCoefficients);
-			newInst->rvec = rotationVectors[i];
-			newInst->tvec = translationVectors[i];*/
-			/*(*markerMap)[key] = &newInst;
-			(*markerMap)[key]->instrument = new Instrument(markerIds[i], translationVectors[i], cameraMatrix, distanceCoefficients);
-			(*markerMap)[key]->rvec = rotationVectors[i];
-			(*markerMap)[key]->tvec = translationVectors[i];*/
-			cout << "Created" << (*markerMap)[key]->instrument->arucoId << endl; //see if this assignment already fucks up
+		//Implement the Allowed objects functionality. 
+		if (find(acceptableInstruments.begin(), acceptableInstruments.end(), markerIds[i]) != acceptableInstruments.end())
+		{
+			if (markerMap->count(markerIds[i]) > 0)
+			{	// key  exists, do something with iter->second (the value)
+					
+		 		(*markerMap)[key]->rvec = rotationVectors[i];
+				(*markerMap)[key]->tvec = translationVectors[i];
+				(*markerMap)[key]->instrument->threeDimCoordinates = translationVectors[i];
+				(*markerMap)[key]->instrument->rotationVec = rotationVectors[i];
+			}
+			else
+			{ // Create new instrument, but only if allowed if a disallowed element, then hop over the index.
+				cout << "Created new instrument" << endl;
+				//Use insert instead of the subscript operator
+				instrumentData* newInst = new instrumentData{ new Instrument(markerIds[i], translationVectors[i], cameraMatrix, distanceCoefficients),
+					rotationVectors[i], translationVectors[i]};
+				markerMap->insert(map<int, instrumentData*>::value_type(key, newInst));
+				newInst->instrument->threeDimCoordinates = translationVectors[i];
+			}
 		}
 	}
 }
@@ -465,18 +460,15 @@ int mainFlow(const Mat& cameraMatrix, const Mat& distanceCoefficients, float aru
 {
 	map< int, instrumentData*> instrumentMap;
 	//IMPLEMENT THIS FUNCTION USING A MAP INSTEAD
-
 	bool* inCurrentProcess;
-	int counter = 0;
-	int* counterPtr = &counter;
+	
 	Mat frame;
 	vector<int> markerIds;
 	vector<vector<Point2f>> markerCorners, rejectedCandidates;
 	aruco::DetectorParameters paramters;
 	Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
 	vector<Vec3d> rotationVectors, translationVectors;
-	vector<int> acceptableInstruments = { 0, 15, 27 }; //Only add these instruments to the list of instruments
-	vector<Instrument*> instruments; //Part of the object creation loop
+	vector<int> acceptableInstruments = { 0, 1, 15, 27 }; //Only add these instruments to the list of instruments
 	vector<Point3d> objectPoints = { Point3d(0,0,0), Point3d(0,0,0) };
 	VideoCapture vid(0);
 
@@ -499,20 +491,16 @@ int mainFlow(const Mat& cameraMatrix, const Mat& distanceCoefficients, float aru
 		aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
 		aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimensions, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
 
-		storeMarkersMap(&instrumentMap, markerIds, rotationVectors, translationVectors, cameraMatrix, distanceCoefficients);
-		cout << "Exited storeMarkersMap and going into checkProximity()" << endl;
-
-		checkProximityMap(&instrumentMap, currentProt, &counter);
+		storeMarkersMap(&instrumentMap, markerIds, acceptableInstruments, rotationVectors, translationVectors, cameraMatrix, distanceCoefficients);
+	 	checkProximityMap(&instrumentMap, currentProt);
 
 		//aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
 	
-		/*
-					instruments[i]->createPointOfLoop();
-					objectPoints[0] = instruments[i]->threeDimCoordinates;
-					objectPoints[1] = instruments[i]->loopTip;
-
-					drawTipOfLoopAndBurner(frame, cameraMatrix, distanceCoefficients, objectPoints);
-		*/
+		//instruments[i]->createPointOfLoop();
+		objectPoints[0] = loop.instrument->threeDimCoordinates;
+		objectPoints[1] = loop.instrument->loopTip;
+		drawTipOfLoopAndBurner(frame, cameraMatrix, distanceCoefficients, objectPoints);
+		
 		
 		aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
 		screenText(frame, currentProt.current_state_ptr->myState());
@@ -671,7 +659,7 @@ int main(char argv, char** argc)
 	Mat cameraMatrix = Mat::eye(3, 3, CV_64F);
 	Mat distanceCoefficients;
 
-	//slight improvement, perhaps the calibration input was all that was wrong. 
+	
 	//livestreamCameraCalibration(cameraMatrix, distanceCoefficients);
 	loadCameraCalibration("CalibrationInfo", cameraMatrix, distanceCoefficients);
 
