@@ -9,7 +9,6 @@
 
 #include "Calibration.h"
 #include "Instrument.h"
-#include "InocLoop.h"
 #include "Protocol.h" 
 
 #include <stdint.h>
@@ -25,7 +24,7 @@ using namespace cv;
 const int fps = 20;
 const float calibrationSquareDimension = 0.024f;
 const float arucoSquareDimension = 0.01f; //Distances are based in meters.
-const float arucoSquareDimensionSecondSet = 0.012;
+const float arucoSquareDimensionSecondSet = 0.0123;
 const Size chessboardDimensions = Size(9, 6);
 
 
@@ -194,14 +193,29 @@ void showCoordsAtPos(Mat& frame, /*String string,*/ Point position, Vec3d tvec)
 	putText(frame, coordsString, position, FONT_HERSHEY_PLAIN, 0.5, Scalar(0, 155, 135));
 }
 
-void screenText(Mat& frame, string inString)
+void screenText(Mat& frame, ostringstream& oString, string currentState)
 {
 	//The line below is how I was calling this function from the loop in startWebcamMonitoring
 	//showCoordsAtPos(frame, Point(markerCorners[i][2].x, markerCorners[i][2].y), translationVectors[i]);
-	ostringstream oString;
-	oString << inString;
-	string outString = oString.str();
-	putText(frame, outString, Point(10, 400), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 255, 150));
+	/* s.str("");
+	   s.clear(); */
+	string outString; 
+
+ 
+	if (currentState == "Soiled" || currentState == "Base State")
+	{
+		oString << "RESTART!";
+		outString = oString.str();
+		putText(frame, outString, Point(10, 400), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 0, 255));
+		oString.str("");
+	}
+	else
+	{
+		oString << currentState;
+		outString = oString.str();
+		putText(frame, outString, Point(10, 400), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 255, 150));
+		oString.str("");
+	}
 }
 
 //void instrumentScan(vector<Instrument>& instruments, int id)
@@ -274,9 +288,6 @@ void detectDistanceLoopToVial(vector<Instrument> instruments, Mat &frame)
 	
 		cout << distance << endl;
 	}
-	
-
-	
 }
 
 Point3d tipOfLoop(Mat& frame, Vec3d initPoint, Vec3d rvec, Vec3d tvec, const Mat& camMatrix, const Mat& distCoeff)
@@ -330,44 +341,7 @@ bool alreadyScanned(vector<Instrument*> instruments, int id)
 }
 
 
-//MAKE THIS RETURN INT WHICH CORRESPONDS TO THE DISPATCH TO SEND
-void checkProximity(vector<Instrument*> instruments, Protocol& protocol, int* counter)
-{
-	//Try first without regard for which instrument on is reacting with. 	 
-	Instrument * loop;
-	Instrument * target;
-	
-	loop = instruments[0];
-	//loop->createPointOfLoop();
 
-	if (instruments.size() > 1)
-	{
-		for (int i = 1; i < instruments.size() ; i++) 
-		{
-			target = instruments[i];
-			if (loop->madeContact(target)) // gotta test this, check if it reacts appropriately.
-			{
-				//cout << "Contact" << endl;
-				cout << loop->arucoId << " Has made contact with " << target->arucoId << endl;
-				*counter += 1;
-				if (*counter > 10)
-				{
-					cout << "Ract Called" << endl;
-					loop->react(target, protocol);
-					*counter = 0;
-				}
-			}
-			else
-			{
-				*counter = 0;
-			}
-		}
-	}
-	//Iterate through the instruments list
-		//calculate distance to other instruments in the shortenedInstrList
-			//If contanct then react(currentInstrument, targetInstrument)
-		//just continue if nothing
-}
 
 struct instrumentData
 {
@@ -456,19 +430,41 @@ void storeMarkersMap(map<int, instrumentData*>* markerMap, vector<int> markerIds
 	}
 }
 
+void createThreshold(Mat& frame)
+{
+	Mat grayScaleMat(frame.size(), CV_8U);
+
+	cvtColor(frame, grayScaleMat, COLOR_BGR2GRAY);
+
+	//Binary Image
+	Mat binaryMat(grayScaleMat.size(), grayScaleMat.type());
+
+	//Apply Thresholding
+
+	threshold(grayScaleMat, binaryMat, 100, 255, THRESH_BINARY);
+
+	namedWindow("GrayOutPut", WINDOW_AUTOSIZE);
+	imshow("Output", binaryMat);
+
+	cv::waitKey(0);
+}
+
+
 int mainFlow(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimensions)
 {
+	ostringstream oString;
+	int textFrameCoutner = 0;
+	string previousState;
+
 	map< int, instrumentData*> instrumentMap;
-	//IMPLEMENT THIS FUNCTION USING A MAP INSTEAD
-	bool* inCurrentProcess;
-	
+		
 	Mat frame;
 	vector<int> markerIds;
 	vector<vector<Point2f>> markerCorners, rejectedCandidates;
 	aruco::DetectorParameters paramters;
 	Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
 	vector<Vec3d> rotationVectors, translationVectors;
-	vector<int> acceptableInstruments = { 0, 1, 15, 27 }; //Only add these instruments to the list of instruments
+	vector<int> acceptableInstruments = { 0, 15, 27, 28 }; //Only add these instruments to the list of instruments
 	vector<Point3d> objectPoints = { Point3d(0,0,0), Point3d(0,0,0) };
 	VideoCapture vid(0);
 
@@ -500,158 +496,16 @@ int mainFlow(const Mat& cameraMatrix, const Mat& distanceCoefficients, float aru
 		objectPoints[0] = loop.instrument->threeDimCoordinates;
 		objectPoints[1] = loop.instrument->loopTip;
 		drawTipOfLoopAndBurner(frame, cameraMatrix, distanceCoefficients, objectPoints);
-		
-		
+				
 		aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
-		screenText(frame, currentProt.current_state_ptr->myState());
-
+		screenText(frame, oString,  currentProt.current_state_ptr->myState());
+		
 		cv::imshow("Webcam", frame);
 		if (waitKey(30) >= 0) break;
 	}
 	return 1;
 }
 
-
-int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimensions)
-{
-
-	bool* inCurrentProcess;
-	int counter = 0;
-	int* counterPtr =&counter;
-	Mat frame;
- 	vector<int> markerIds;
-	vector<vector<Point2f>> markerCorners, rejectedCandidates;
-	aruco::DetectorParameters paramters;
-	Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
- 	vector<Vec3d> rotationVectors, translationVectors;
-	vector<int> acceptableInstruments = {0, 15, 27}; //Only add these instruments to the list of instruments
-	vector<Instrument*> instruments; //Part of the object creation loop
-	
-	vector<Point3d> objectPoints = {Point3d(0,0,0), Point3d(0,0,0)};
-	
-	VideoCapture vid(0);
-
-	
-	Protocol currentProt;
-	currentProt.start(); //Trying with this. 
-
-	if (!vid.isOpened()) { return -1;}
-	namedWindow("Webcam", WINDOW_AUTOSIZE);
-
-	//Need to ensure that the loop is always the first element.
-
-	while (true) //Basically the main loop of when the camera is running. 
-	{
-		if (!vid.read(frame))
-			break;
-
-		aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
-		aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimensions, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
-				 
-		for (int i = 0; i < markerIds.size(); i++)
-		{
-			//aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
-			
-			
-			if(!alreadyScanned(instruments, markerIds[i])) // redefine to take pointers and not actual objects
-			{
-				if (markerIds[i] == 0)
-				{ //Trying to make sure that the first instrument is always the loop.
-					instruments.insert(instruments.begin(), new Instrument(markerIds[i], translationVectors[i], cameraMatrix, distanceCoefficients));
-					instruments[i]->createPointOfLoop();
-				}
-				else if (find (acceptableInstruments.begin(), acceptableInstruments.end(), markerIds[i])!= acceptableInstruments.end()) 
-				{
-					instruments.push_back(new Instrument(markerIds[i], translationVectors[i], cameraMatrix, distanceCoefficients));
-				}
-			}
-			else
-			{ // there are more markerIds than instruments this bug appears sometimes.
-				instruments[i]->threeDimCoordinates = translationVectors[i];
-
-				if (markerIds[i] == 0)  //The loop and Bunsen burner require these values
-				{ 
-					instruments[i]->rotationVec = rotationVectors[i]; 
-					instruments[i]->translationVec = translationVectors[i];
-			 		instruments[i]->createPointOfLoop();
-					objectPoints[0] = instruments[i]->threeDimCoordinates;
-					objectPoints[1] = instruments[i]->loopTip;
-
-					drawTipOfLoopAndBurner(frame, cameraMatrix, distanceCoefficients, objectPoints);
-				}
-			}
-		}
-
-
-		if (instruments.size() > 1) 
-		{ 
-			checkProximity(instruments, currentProt, counterPtr);
-			currentProt.current_state_ptr->myState(); //This seems to be working
-			//cout << instruments[0]->threeDimCoordinates << endl;
-			//cout << instruments[1]->threeDimCoordinates << endl;
-		}
-		
- 		aruco::drawDetectedMarkers(frame, markerCorners, markerIds); 
-		screenText(frame, currentProt.current_state_ptr->myState() );
-
-		imshow("Webcam", frame);
-		if (waitKey(30) >= 0) break;
-	}
-	return 1;
-}
-
-void simulatingStateMachine()
-{
-	 
-	Protocol::start();
- 
-	while (true)
-	{
-		char c;
-		cout << " c :Options, \n d: Dip loop in Vial, \n q: Query State, \n s: Streak, \n t: Sterilize, \n o: Stow, \n i: Soil " << endl;
-		cin >> c;
-		switch (c)
-		{
-		case 'q':
-			cout << "Pressed q" << endl;
-			Protocol::state<Protocol>().current_state_ptr->myState();
-			break;
-
-		case 'c':
-			cout << "Pressed c" << endl;
-			break;
-
-		case 'd':
-			cout << "Pressed d" << endl;
-			Protocol::dispatch(LoopDippedInVial());
-			break;
-
-		case 's':
-			cout << "Pressed s" << endl;
-			Protocol::dispatch(Streak());
-			break;
-
-		case 't':
-			cout << "Pressed t" << endl;
-			Protocol::dispatch(LoopSterilize());
-			break;
-
-		case 'o':
-			cout << "Pressed o" << endl;
-			Protocol::dispatch(Stow());
-			break;
-
-		case 'i':
-			cout << "Pressed i" << endl;
-			Protocol::dispatch(Soil());
-			break;
-
-		default:
-			cout << "NO valid input" << endl;
-
-		}
-	}
-}
 
 int main(char argv, char** argc)
 
@@ -664,7 +518,7 @@ int main(char argv, char** argc)
 	loadCameraCalibration("CalibrationInfo", cameraMatrix, distanceCoefficients);
 
 	//startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
-	mainFlow(cameraMatrix, distanceCoefficients, arucoSquareDimension);
+	mainFlow(cameraMatrix, distanceCoefficients, arucoSquareDimensionSecondSet);
 	//simulatingStateMachine();
 
 	return 0;

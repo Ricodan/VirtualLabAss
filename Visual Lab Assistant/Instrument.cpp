@@ -24,7 +24,7 @@ void Instrument::assignType(int id)
 	{
 		this->iType = LOOP;
 	}
-	else if (id == 1)
+	else if (/*id == 1*/ id == 28)
 	{
 		this->iType = BURNER;
 	}
@@ -32,7 +32,7 @@ void Instrument::assignType(int id)
 	{
 		this -> iType = EPENDORPH;
 	}
-	else if (id >= 20)
+	else if (id >= 20 && id < 28)
 	{
 		this->iType = PETRI;
 	}
@@ -92,13 +92,13 @@ void Instrument::react(Instrument* target, Protocol protocol)
 bool Instrument::madeContact(Instrument* instA)
 {
 	/*this->createPointOfLoop();*/
-	double distance = euclideanDistToInst(this->threeDimCoordinates, instA->threeDimCoordinates);
+	double distance = euclideanDistToInst(this->loopTip, instA->threeDimCoordinates);
 	std::cout << "distance " << this->arucoId << " to " << instA->arucoId << " " << distance << std::endl;
 	if (distance < 0.05) //The distance is set to react at when there's a centimeter of distance
 	{
 		return true;
 	}
-	else if (distance > 0.2)
+	else if (distance > 0.1)
 	{
 		std::cout << "Is disengaged True" << endl;
 		instA->hasDisengaged = true;
