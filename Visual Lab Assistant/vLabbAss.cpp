@@ -29,22 +29,6 @@ const Size chessboardDimensions = Size(9, 6);
 
 
 
-void writeTextOnMarker(Mat& outputFrame, Mat& cameraMatrix, Mat& distanceCoefficients, String text, Point point)
-{
-	 
-	//projectPoints(objPoints, rvec, tvec, cameraMatrix, distanceCoefficients, imgPoints, something);
-
-
-
-}
-
-
-
-void distanceToCamera(Mat& inOutFrame, Mat& cameraMatrix, Mat& distanceCoefficients)
-{
-
-}
-
 double euclideanDist(Vec3d pointA, Vec3d pointB)
 {
 	double dist = sqrt(pow(pointA[0] - pointB[0], 2) + pow(pointA[1] - pointB[1], 2) + pow(pointA[2] - pointB[2], 2));
@@ -218,37 +202,6 @@ void screenText(Mat& frame, ostringstream& oString, string currentState)
 	}
 }
 
-//void instrumentScan(vector<Instrument>& instruments, int id)
-//{
-//	/*Id 0 InocLoop
-//	Id 1 Bunsen Burner
-//	Id 10 - 19 Ependorph tubes
-//	Id 20 - 50 Petri dishes. 
-//	*/
-////Do subclasses all fit into an array with the superclass as identifier?
-//	switch (id)
-//	{
-//	case 0:
-//	{
-//		InocLoop loop = InocLoop(id);
-//		instruments.push_back(loop);
-//		break;
-//	}
-//	case 1:
-//	{
-//		Instrument instrument = Instrument(id);
-//		instruments.push_back(instrument);
-//		break;
-//	}
-//	default:
-//	{
-//		Instrument instrument = Instrument(id);
-//		instruments.push_back(instrument);
-//		break;
-//	}
-//	}
-//}
-
 void detectDistanceLoopToVial(vector<Instrument> instruments, Mat &frame)
 {
 	vector<Instrument *> localInstrumentVector;
@@ -303,8 +256,8 @@ Point3d tipOfLoop(Mat& frame, Vec3d initPoint, Vec3d rvec, Vec3d tvec, const Mat
 	Rodrigues(rvec, rotMat);
 	Mat rotMatTpose = rotMat.t();
 	double* tmp = rotMatTpose.ptr<double>(0);
-	Point3d camWorldE(tmp[0] * 0.108, tmp[1] * 0.108,	tmp[2] * 0.108);
-	tipOfLoop += camWorldE;
+	Point3d prolongPoint(tmp[0] * 0.108, tmp[1] * 0.108,	tmp[2] * 0.108);
+	tipOfLoop += prolongPoint;
 	objPoints.push_back(tipOfLoop);
 	//End of point projection code
 
@@ -340,12 +293,15 @@ bool alreadyScanned(vector<Instrument*> instruments, int id)
 	return false;
 }
 
-
+/*Id 0 InocLoop
+//	Id 1 Bunsen Burner
+//	Id 10 - 19 Ependorph tubes
+//	Id 20 - 50 Petri dishes.
+//	*/
 
 
 struct instrumentData
 {
-	//int arucoMarkerId; This will be the key
 	Instrument* instrument;
 	Vec3d rvec, tvec;
 	int* counter = new int(0);
@@ -353,7 +309,6 @@ struct instrumentData
 
 void checkProximityMap(map<int, instrumentData*>* instrumentsMap, Protocol& protocol)
 {
-	//Try first without regard for which instrument on is reacting with. 	 
 	instrumentData* loop;
 	instrumentData* target;
 
@@ -361,20 +316,19 @@ void checkProximityMap(map<int, instrumentData*>* instrumentsMap, Protocol& prot
 	loop->instrument->createPointOfLoop();
 	//loop->createPointOfLoop();
 	
-	for (auto const& inst : (*instrumentsMap)) //Perhaps this is the problem 
+	for (auto const& inst : (*instrumentsMap)) 
 	{
 		if(inst.first != 0)
 		{
 			target = inst.second; //This will contain instrument info, but not the key
 		
-			if (loop->instrument->madeContact(target->instrument)) // Here it fucks up
+			if (loop->instrument->madeContact(target->instrument)) 
 			{
 				cout << loop->instrument->arucoId << " Has made contact with " << target->instrument->arucoId << endl;
 				*(target->counter) += 1;
 				cout << "Counter: " << *(target->counter) << endl;
 				
-				//This thingis false for too long
-
+			
 				if (*(target->counter) > 6 && target->instrument->hasDisengaged == true)
 				{
 					loop->instrument->react(target->instrument, protocol);
@@ -421,7 +375,8 @@ void storeMarkersMap(map<int, instrumentData*>* markerMap, vector<int> markerIds
 			{ // Create new instrument, but only if allowed if a disallowed element, then hop over the index.
 				cout << "Created new instrument" << endl;
 				//Use insert instead of the subscript operator
-				instrumentData* newInst = new instrumentData{ new Instrument(markerIds[i], translationVectors[i], cameraMatrix, distanceCoefficients),
+				instrumentData* newInst = new instrumentData{ 
+					new Instrument(markerIds[i], translationVectors[i], cameraMatrix, distanceCoefficients),
 					rotationVectors[i], translationVectors[i]};
 				markerMap->insert(map<int, instrumentData*>::value_type(key, newInst));
 				newInst->instrument->threeDimCoordinates = translationVectors[i];
@@ -492,7 +447,7 @@ int mainFlow(const Mat& cameraMatrix, const Mat& distanceCoefficients, float aru
 
 		//aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
 	
-		//instruments[i]->createPointOfLoop();
+	 
 		objectPoints[0] = loop.instrument->threeDimCoordinates;
 		objectPoints[1] = loop.instrument->loopTip;
 		drawTipOfLoopAndBurner(frame, cameraMatrix, distanceCoefficients, objectPoints);

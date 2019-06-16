@@ -48,8 +48,8 @@ void Instrument::createPointOfLoop()
 	Rodrigues(this->rotationVec, rotMat);
 	Mat rotMatTpose = rotMat.t();
 	double* tmp = rotMatTpose.ptr<double>(0);
-	Point3d camWorldE(tmp[0] * 0.108, tmp[1] * 0.108, tmp[2] * 0.108);
-	tipOfLoop += camWorldE;
+	Point3d prolongPoint(tmp[0] * 0.108, tmp[1] * 0.108, tmp[2] * 0.108);
+	tipOfLoop += prolongPoint;
 	//End of point projection code
 	
 	this->loopTip = tipOfLoop;
