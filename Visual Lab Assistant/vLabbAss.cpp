@@ -17,6 +17,7 @@
 #include <iostream>
 #include <fstream>
 #include <map>
+#include <ctime>
 
 using namespace std;
 using namespace cv;
@@ -449,15 +450,71 @@ void createThreshold(Mat& frame)
 	cv::waitKey(0);
 }
 
+struct testData
+{
+	time_t start, end;
+	int frameCounter;
+};
+
+void performanceTest(Mat& frame, vector<int> markerIds, testData* testInfo, clock_t* timer, double* fps)
+{
+	ostringstream stringBuilder;
+	testInfo->frameCounter += 1;
+	
+	if (clock()/ CLOCKS_PER_SEC - *timer > 1)
+	{
+		time(&testInfo->end);
+		double seconds = difftime(testInfo->end, testInfo->start);
+		*fps = testInfo->frameCounter / seconds;
+		cout << "The current estimated FPS is: " << *fps << endl;
+		*timer = clock() / CLOCKS_PER_SEC;
+		time(&testInfo->start);
+		testInfo->frameCounter = 0;
+	}
+
+	string outputString;
+	stringBuilder << "The current estimated FPS is: " << *fps;
+	outputString = stringBuilder.str();
+	putText(frame, outputString, Point(10, 10), FONT_HERSHEY_PLAIN, 1, Scalar(0, 155, 135));
+}
+
+void distanceDetectionTest(Mat& frame, vector<int> markers, clock_t* timer, ostringstream* stringBuilder, double* misses, double* hits, double* frames)
+{
+	*frames += 1;
+	if (markers.size() == 0)
+	{
+		*misses += 1;
+	}
+	if (markers.size() > 0)
+	{
+		*hits += 1;
+	}
+
+	if (clock() / CLOCKS_PER_SEC - *timer > 1)
+	{ //Every second check what percentage have missed and hit
+		(*stringBuilder).str("");
+		(*stringBuilder).clear();
+
+		cout << "% Hit: " << *misses/(*frames) *100 << endl;
+		cout << "% Miss: " << *hits/ (*frames) *100 << endl;
+
+		*stringBuilder << "% Hit: " << *hits / (*frames) * 100;
+		*stringBuilder << "% Miss: " << *misses / (*frames) * 100; 
+		*timer = clock() / CLOCKS_PER_SEC;
+		*frames = 0;
+		*hits = 0;
+		*misses = 0;
+	}
+	string outputString;
+	outputString = (*stringBuilder).str();
+	putText(frame, outputString, Point(10, 20), FONT_HERSHEY_PLAIN, 1, Scalar(116, 240, 20));
+}
 
 int mainFlow(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimensions)
 {
 	ostringstream oString;
-	int textFrameCoutner = 0;
-	string previousState;
-
+	
 	map< int, instrumentData*> instrumentMap;
-		
 	Mat frame;
 	vector<int> markerIds;
 	vector<vector<Point2f>> markerCorners, rejectedCandidates;
@@ -466,10 +523,29 @@ int mainFlow(const Mat& cameraMatrix, const Mat& distanceCoefficients, float aru
 	vector<Vec3d> rotationVectors, translationVectors;
 	vector<int> acceptableInstruments = { 0, 15, 27, 28 }; //Only add these instruments to the list of instruments
 	vector<Point3d> objectPoints = { Point3d(0,0,0), Point3d(0,0,0) };
-	VideoCapture vid(0);
-
 	Protocol currentProt;
-	currentProt.start(); //Trying with this. 
+	currentProt.start();
+	
+	//Variables used in testing
+	clock_t timeElapsed;
+	testData testInfo;
+	timeElapsed = clock() / CLOCKS_PER_SEC;
+	time(&testInfo.start);
+	double fps = 0;
+	double* fpsPtr = &fps;
+	//Distance check test variables
+	double frames, hits, miss = 0;
+	double* framesP = &frames;
+	double* hitsP = &hits;
+	double* missP = &miss;
+	ostringstream stringStream;
+	ostringstream* stringBuilder = &stringStream;
+
+
+	VideoCapture vid(0);
+	//Need to calibrate first with this resolution to ensure correct results.
+	//vid.set(3, 1280);
+	//vid.set(4, 720);
 
 	if (!vid.isOpened()) { return -1; }
 	namedWindow("Webcam", WINDOW_AUTOSIZE);
@@ -479,12 +555,15 @@ int mainFlow(const Mat& cameraMatrix, const Mat& distanceCoefficients, float aru
 	loop.instrument = new Instrument(0, Vec3d(0, 0, 0), cameraMatrix, distanceCoefficients);
 	instrumentMap[0] = &loop;
 
-	while (true) //Basically the main loop of when the camera is running. 
+	
+
+	while (true) 
 	{
 		if (!vid.read(frame))
 			break;
-
+		cout << frame.size() << endl;
 		aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
+		cout << markerIds.size() << endl;
 		aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimensions, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
 
 		storeMarkersMap(&instrumentMap, markerIds, acceptableInstruments, rotationVectors, translationVectors, cameraMatrix, distanceCoefficients);
@@ -492,14 +571,16 @@ int mainFlow(const Mat& cameraMatrix, const Mat& distanceCoefficients, float aru
 
 		//aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
 	
-		//instruments[i]->createPointOfLoop();
+		
 		objectPoints[0] = loop.instrument->threeDimCoordinates;
 		objectPoints[1] = loop.instrument->loopTip;
 		drawTipOfLoopAndBurner(frame, cameraMatrix, distanceCoefficients, objectPoints);
-				
 		aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
 		screenText(frame, oString,  currentProt.current_state_ptr->myState());
 		
+		//performanceTest(frame, markerIds, &testInfo, &timeElapsed, fpsPtr);
+		distanceDetectionTest(frame, markerIds, &timeElapsed, stringBuilder, missP, hitsP, framesP);
+	
 		cv::imshow("Webcam", frame);
 		if (waitKey(30) >= 0) break;
 	}
@@ -516,10 +597,7 @@ int main(char argv, char** argc)
 	
 	//livestreamCameraCalibration(cameraMatrix, distanceCoefficients);
 	loadCameraCalibration("CalibrationInfo", cameraMatrix, distanceCoefficients);
-
-	//startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
 	mainFlow(cameraMatrix, distanceCoefficients, arucoSquareDimensionSecondSet);
-	//simulatingStateMachine();
 
 	return 0;
 }
