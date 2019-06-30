@@ -13,7 +13,7 @@ struct LabEvent : tinyfsm::Event
 	//What could go in here?
 	//Proximity
 	//Bool haveMadeContact
-	//
+
 
 };
 
@@ -55,11 +55,8 @@ public:
 	
 
 protected:
-	//Just copied this from the utinyfsm tutorial.
-	static constexpr int initial_floor = 0;
-	static int current_floor;
-	static int dest_floor;
-	
+
+		
 };
 
 #endif

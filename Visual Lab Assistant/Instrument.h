@@ -27,8 +27,6 @@ public:
 	};
 	instrType iType;
 
-	//date of the last calibration 
-	
 
 	void react(Instrument* target, Protocol protocol);
 	bool madeContact(Instrument* instA);

@@ -308,7 +308,7 @@ struct instrumentData
 	int* counter = new int(0);
 };
 
-void checkProximityMap(map<int, instrumentData*>* instrumentsMap, Protocol& protocol)
+void checkProximity(map<int, instrumentData*>* instrumentsMap, Protocol& protocol)
 {
 	instrumentData* loop;
 	instrumentData* target;
@@ -322,7 +322,8 @@ void checkProximityMap(map<int, instrumentData*>* instrumentsMap, Protocol& prot
 		if(inst.first != 0)
 		{
 			target = inst.second; //This will contain instrument info, but not the key
-		
+			
+
 			if (loop->instrument->madeContact(target->instrument)) 
 			{
 				cout << loop->instrument->arucoId << " Has made contact with " << target->instrument->arucoId << endl;
@@ -349,7 +350,7 @@ void checkProximityMap(map<int, instrumentData*>* instrumentsMap, Protocol& prot
 	//just continue if nothing
 }
 
-void storeMarkersMap(map<int, instrumentData*>* markerMap, vector<int> markerIds, vector<int> acceptableInstruments, vector<Vec3d> rotationVectors, vector<Vec3d> translationVectors, Mat cameraMatrix, Mat distanceCoefficients)
+void storeMarkersMap(map<int, instrumentData*>* markerMap, Mat& frame, vector<int> markerIds, vector<int> acceptableInstruments, vector<Vec3d> rotationVectors, vector<Vec3d> translationVectors, Mat cameraMatrix, Mat distanceCoefficients)
 {
 	//Most of the time the ids will already exist, so better to optimize for that
 	//Find indexes of undesired markers detected and remove the equivalent elements at the same index from other instruments. 
@@ -365,15 +366,16 @@ void storeMarkersMap(map<int, instrumentData*>* markerMap, vector<int> markerIds
 		if (find(acceptableInstruments.begin(), acceptableInstruments.end(), markerIds[i]) != acceptableInstruments.end())
 		{
 			if (markerMap->count(markerIds[i]) > 0)
-			{	// key  exists, do something with iter->second (the value)
-					
-		 		(*markerMap)[key]->rvec = rotationVectors[i];
+			{	
+				// key  exists, do something with iter->second (the value)
+				(*markerMap)[key]->rvec = rotationVectors[i];
 				(*markerMap)[key]->tvec = translationVectors[i];
 				(*markerMap)[key]->instrument->threeDimCoordinates = translationVectors[i];
 				(*markerMap)[key]->instrument->rotationVec = rotationVectors[i];
+				aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
 			}
 			else
-			{ // Create new instrument, but only if allowed if a disallowed element, then hop over the index.
+			{ 
 				cout << "Created new instrument" << endl;
 				//Use insert instead of the subscript operator
 				instrumentData* newInst = new instrumentData{ 
@@ -386,24 +388,7 @@ void storeMarkersMap(map<int, instrumentData*>* markerMap, vector<int> markerIds
 	}
 }
 
-void createThreshold(Mat& frame)
-{
-	Mat grayScaleMat(frame.size(), CV_8U);
 
-	cvtColor(frame, grayScaleMat, COLOR_BGR2GRAY);
-
-	//Binary Image
-	Mat binaryMat(grayScaleMat.size(), grayScaleMat.type());
-
-	//Apply Thresholding
-
-	threshold(grayScaleMat, binaryMat, 100, 255, THRESH_BINARY);
-
-	namedWindow("GrayOutPut", WINDOW_AUTOSIZE);
-	imshow("Output", binaryMat);
-
-	cv::waitKey(0);
-}
 
 struct testData
 {
@@ -465,22 +450,48 @@ void distanceDetectionTest(Mat& frame, vector<int> markers, clock_t* timer, ostr
 	putText(frame, outputString, Point(10, 20), FONT_HERSHEY_PLAIN, 1, Scalar(116, 240, 20));
 }
 
+Mat createThreshold(Mat& frame)
+{
+	Mat grayScaleMat(frame.size(), CV_8U);
+
+	cvtColor(frame, grayScaleMat, COLOR_BGR2GRAY);
+
+	//Binary Image
+	Mat binaryMat(grayScaleMat.size(), grayScaleMat.type());
+
+	//Apply Thresholding
+
+	//threshold(grayScaleMat, binaryMat, 100, 200, THRESH_OTSU);
+	adaptiveThreshold(grayScaleMat, binaryMat, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY, 5, 2);
+	//namedWindow("GrayOutPut", WINDOW_AUTOSIZE);
+	imshow("Output", binaryMat);
+
+
+	return binaryMat;
+}
+
 int mainFlow(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimensions)
 {
 	ostringstream oString;
 	
 	map< int, instrumentData*> instrumentMap;
 	Mat frame;
+	Mat thresholdedMat;
 	vector<int> markerIds;
 	vector<vector<Point2f>> markerCorners, rejectedCandidates;
-	aruco::DetectorParameters paramters;
+	Ptr<aruco::DetectorParameters> parameters = aruco::DetectorParameters::create();
 	Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
 	vector<Vec3d> rotationVectors, translationVectors;
-	vector<int> acceptableInstruments = { 0, 15, 27, 28 }; //Only add these instruments to the list of instruments
+	vector<int> acceptableInstruments = { 0,11, 15, 27, 28 }; //Only add these instruments to the list of instruments
 	vector<Point3d> objectPoints = { Point3d(0,0,0), Point3d(0,0,0) };
 	Protocol currentProt;
 	currentProt.start();
-	
+
+	//parameters->create();
+	//parameters->adaptiveThreshWinSizeMax = 23;
+	//parameters->adaptiveThreshWinSizeMin = 3;
+	//parameters->adaptiveThreshWinSizeStep = 10;
+
 	//Variables used in testing
 	clock_t timeElapsed;
 	testData testInfo;
@@ -498,7 +509,7 @@ int mainFlow(const Mat& cameraMatrix, const Mat& distanceCoefficients, float aru
 
 
 	VideoCapture vid(0);
-	//Need to calibrate first with this resolution to ensure correct results.
+	//Need to calibrate first with this resolution to ensure correct results´. 
 	//vid.set(3, 1280);
 	//vid.set(4, 720);
 
@@ -516,26 +527,24 @@ int mainFlow(const Mat& cameraMatrix, const Mat& distanceCoefficients, float aru
 	{
 		if (!vid.read(frame))
 			break;
-		cout << frame.size() << endl;
-		aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
-		cout << markerIds.size() << endl;
+	 
+		 
+		aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds, parameters);
 		aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimensions, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
 
-		storeMarkersMap(&instrumentMap, markerIds, acceptableInstruments, rotationVectors, translationVectors, cameraMatrix, distanceCoefficients);
-	 	checkProximityMap(&instrumentMap, currentProt);
-
-		//aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
-
+		storeMarkersMap(&instrumentMap, frame, markerIds, acceptableInstruments, rotationVectors, translationVectors, cameraMatrix, distanceCoefficients);
+	 	checkProximity(&instrumentMap, currentProt);
 
 		objectPoints[0] = loop.instrument->threeDimCoordinates;
 		objectPoints[1] = loop.instrument->loopTip;
-		drawTipOfLoopAndBurner(frame, cameraMatrix, distanceCoefficients, objectPoints);
+		//drawTipOfLoopAndBurner(frame, cameraMatrix, distanceCoefficients, objectPoints);
 		aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
 		screenText(frame, oString,  currentProt.current_state_ptr->myState());
 		
 		//performanceTest(frame, markerIds, &testInfo, &timeElapsed, fpsPtr);
-		distanceDetectionTest(frame, markerIds, &timeElapsed, stringBuilder, missP, hitsP, framesP);
-	
+		//distanceDetectionTest(frame, markerIds, &timeElapsed, stringBuilder, missP, hitsP, framesP);
+		  
+
 		cv::imshow("Webcam", frame);
 		if (waitKey(30) >= 0) break;
 	}
@@ -548,7 +557,6 @@ int main(char argv, char** argc)
 {
 	Mat cameraMatrix = Mat::eye(3, 3, CV_64F);
 	Mat distanceCoefficients;
-
 	
 	//livestreamCameraCalibration(cameraMatrix, distanceCoefficients);
 	loadCameraCalibration("CalibrationInfo", cameraMatrix, distanceCoefficients);

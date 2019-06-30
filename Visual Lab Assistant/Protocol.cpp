@@ -14,20 +14,12 @@ class Spoiled;
 // Transition and condition functions
 //
 
-static void CallMaintenance() 
-{
-	cout << "*** calling maintenance ***" << endl;
-}
 
-static void CallFirefighters() 
-{
-	cout << "*** calling firefighters ***" << endl;
-}
-static bool loopIsSterilized()
-{
-	
-	cout << "*** Checking if the loop is sterlized***" << endl;
-}
+//static bool loopIsSterilized()
+//{
+//	
+//	cout << "*** Checking if the loop is sterlized***" << endl;
+//}
 
 
 // ----------------------------------------------------------------------------
