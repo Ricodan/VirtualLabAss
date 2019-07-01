@@ -22,9 +22,10 @@
 using namespace std;
 using namespace cv;
 
+//Distances are based in meters.
 const int fps = 20;
 const float calibrationSquareDimension = 0.024f;
-const float arucoSquareDimension = 0.01f; //Distances are based in meters.
+const float arucoSquareDimension = 0.01f; 
 const float arucoSquareDimensionSecondSet = 0.0123;
 const Size chessboardDimensions = Size(9, 6);
 
@@ -35,42 +36,6 @@ double euclideanDist(Vec3d pointA, Vec3d pointB)
 	double dist = sqrt(pow(pointA[0] - pointB[0], 2) + pow(pointA[1] - pointB[1], 2) + pow(pointA[2] - pointB[2], 2));
 	return dist;
 
-}
-
-//Testing using this for the object points. 
-vector<Point3d> Generate3DPoints()
-{
-	std::vector<cv::Point3d> points;
-
-	double x, y, z;
-
-	x = .5; y = .5; z = -.5;
-	points.push_back(cv::Point3d(x, y, z));
-
-	x = .5; y = .5; z = .5;
-	points.push_back(cv::Point3d(x, y, z));
-
-	x = -.5; y = .5; z = .5;
-	points.push_back(cv::Point3d(x, y, z));
-
-	x = -.5; y = .5; z = -.5;
-	points.push_back(cv::Point3d(x, y, z));
-
-	x = .5; y = -.5; z = -.5;
-	points.push_back(cv::Point3d(x, y, z));
-
-	x = -.5; y = -.5; z = -.5;
-	points.push_back(cv::Point3d(x, y, z));
-
-	x = -.5; y = -.5; z = .5;
-	points.push_back(cv::Point3d(x, y, z));
-
-	for (unsigned int i = 0; i < points.size(); ++i)
-	{
-		std::cout << points[i] << std::endl << std::endl;
-	}
-
-return points;
 }
 
 vector<Point3d> get3dArucoSquareCorners(double side, Vec3d rvec, Vec3d tvec)
@@ -111,7 +76,7 @@ vector<Point3d> get3dArucoSquareCorners(double side, Vec3d rvec, Vec3d tvec)
 //Getting 3d points
 vector<Point3d> getAruco3dCornerCoords(double side, Vec3d rvec, Vec3d tvec)
 {
-	//https://stackoverflow.com/questions/46363618/aruco-markers-with-opencv-get-the-3d-corner-coordinates
+	
 	double halfSide = side / 2;
 
 	//Compute rot_mat
@@ -214,7 +179,8 @@ void detectDistanceLoopToVial(vector<Instrument> instruments, Mat &frame)
 	{
 		if (instruments[i].arucoId == 0)
 		{
-			loop =  &instruments[i]; //Trying to create a pointer to the loop. 
+			//Trying to create a pointer to the loop. 
+			loop =  &instruments[i]; 
 			localInstrumentVector.push_back(loop);
 		}
 		if (instruments[i].arucoId >= 10 && instruments[i].arucoId < 20)
@@ -238,7 +204,6 @@ void detectDistanceLoopToVial(vector<Instrument> instruments, Mat &frame)
 			string confirmationString = confirm.str();
 			putText(frame, confirmationString, Point(25,25), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 135));
 		}
-	
 	
 		cout << distance << endl;
 	}
@@ -294,12 +259,6 @@ bool alreadyScanned(vector<Instrument*> instruments, int id)
 	return false;
 }
 
-/*Id 0 InocLoop
-//	Id 1 Bunsen Burner
-//	Id 10 - 19 Ependorph tubes
-//	Id 20 - 50 Petri dishes.
-//	*/
-
 
 struct instrumentData
 {
@@ -311,43 +270,43 @@ struct instrumentData
 void checkProximity(map<int, instrumentData*>* instrumentsMap, Protocol& protocol)
 {
 	instrumentData* loop;
+	instrumentData* stowP;
 	instrumentData* target;
 
 	loop = (*instrumentsMap)[0]; 
+	stowP = (*instrumentsMap)[11];
 	loop->instrument->createPointOfLoop();
-	//loop->createPointOfLoop();
-	
+		
 	for (auto const& inst : (*instrumentsMap)) 
 	{
-		if(inst.first != 0)
+		//As long as the instrument is neither a loop nor a location
+		if(inst.first != 0 && inst.first != 11)
 		{
 			target = inst.second; //This will contain instrument info, but not the key
-			
-
+		
 			if (loop->instrument->madeContact(target->instrument)) 
 			{
-				cout << loop->instrument->arucoId << " Has made contact with " << target->instrument->arucoId << endl;
+				//cout << loop->instrument->arucoId << " Has made contact with " << target->instrument->arucoId << endl;
 				*(target->counter) += 1;
-				cout << "Counter: " << *(target->counter) << endl;
-				
-			
+				//cout << "Counter: " << *(target->counter) << endl;
+					
 				if (*(target->counter) > 6 && target->instrument->hasDisengaged == true)
 				{
 					loop->instrument->react(target->instrument, protocol);
 					*(target->counter) = 0;
 				}
 			}
+			else if (stowP->instrument->stowContact(target->instrument))
+			{
+				stowP->instrument->stowPointReact(target->instrument, protocol);
+			}
 			else
 			{
 				*(target->counter) = 0;
 			}
 		}
+		
 	}
-	
-	//Iterate through the instruments list
-	//calculate distance to other instruments in the shortenedInstrList
-	//If contanct then react(currentInstrument, targetInstrument)
-	//just continue if nothing
 }
 
 void storeMarkersMap(map<int, instrumentData*>* markerMap, Mat& frame, vector<int> markerIds, vector<int> acceptableInstruments, vector<Vec3d> rotationVectors, vector<Vec3d> translationVectors, Mat cameraMatrix, Mat distanceCoefficients)
@@ -358,11 +317,7 @@ void storeMarkersMap(map<int, instrumentData*>* markerMap, Mat& frame, vector<in
 	for (int i = 0; i < markerIds.size(); i++)
 	{
 		int key = markerIds[i];
-		//cout << "Key: " << key << endl;
-		//auto iter = markerMap->find(markerIds[i]);
-		//cout << markerMap->count(markerIds[i]) << endl;
-
-		//Implement the Allowed objects functionality. 
+	
 		if (find(acceptableInstruments.begin(), acceptableInstruments.end(), markerIds[i]) != acceptableInstruments.end())
 		{
 			if (markerMap->count(markerIds[i]) > 0)
@@ -372,12 +327,11 @@ void storeMarkersMap(map<int, instrumentData*>* markerMap, Mat& frame, vector<in
 				(*markerMap)[key]->tvec = translationVectors[i];
 				(*markerMap)[key]->instrument->threeDimCoordinates = translationVectors[i];
 				(*markerMap)[key]->instrument->rotationVec = rotationVectors[i];
-				aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
+				//aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.03f);
 			}
 			else
 			{ 
 				cout << "Created new instrument" << endl;
-				//Use insert instead of the subscript operator
 				instrumentData* newInst = new instrumentData{ 
 					new Instrument(markerIds[i], translationVectors[i], cameraMatrix, distanceCoefficients),
 					rotationVectors[i], translationVectors[i]};
@@ -482,7 +436,7 @@ int mainFlow(const Mat& cameraMatrix, const Mat& distanceCoefficients, float aru
 	Ptr<aruco::DetectorParameters> parameters = aruco::DetectorParameters::create();
 	Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
 	vector<Vec3d> rotationVectors, translationVectors;
-	vector<int> acceptableInstruments = { 0,11, 15, 27, 28 }; //Only add these instruments to the list of instruments
+	vector<int> acceptableInstruments = {0, 11, 15, 25, 27, 28 };
 	vector<Point3d> objectPoints = { Point3d(0,0,0), Point3d(0,0,0) };
 	Protocol currentProt;
 	currentProt.start();
@@ -517,10 +471,11 @@ int mainFlow(const Mat& cameraMatrix, const Mat& distanceCoefficients, float aru
 	namedWindow("Webcam", WINDOW_AUTOSIZE);
 
 	//Initiliazing with the loop already in the hashMap
-	instrumentData loop;
+	instrumentData loop, stowPlace;
 	loop.instrument = new Instrument(0, Vec3d(0, 0, 0), cameraMatrix, distanceCoefficients);
+	stowPlace.instrument = new Instrument(11, Vec3d(2, 2, 2), cameraMatrix, distanceCoefficients);
 	instrumentMap[0] = &loop;
-
+	instrumentMap[11] = &stowPlace;
 	
 
 	while (true) 

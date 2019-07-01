@@ -24,17 +24,21 @@ void Instrument::assignType(int id)
 	{
 		this->iType = LOOP;
 	}
-	else if (id == 1 )
+	else if (id == 28)
 	{
 		this->iType = BURNER;
 	}
-	else if (id >= 10 && id < 20)
+	else if (id >= 12 && id < 20)
 	{
 		this -> iType = EPENDORPH;
 	}
-	else if (id >= 20 && id < 30)
+	else if (id >= 20 && id < 28)
 	{
 		this->iType = PETRI;
+	}
+	else if (id == 11)
+	{
+		this->iType = STOW;
 	}
 }
 
@@ -83,16 +87,23 @@ void Instrument::react(Instrument* target, Protocol protocol)
 			protocol.dispatch(Streak());
 			target->hasDisengaged = false;
 		}
+		
 	}
 }
 
-
+void Instrument::stowPointReact(Instrument* target, Protocol protocol)
+{
+	if (target->iType ==PETRI)
+	{
+		protocol.dispatch(Stow());
+	}
+}
 
 //It is assumed that only the loop will be making contact with other things.  
 bool Instrument::madeContact(Instrument* instA)
 {
 	double distance = euclideanDistToInst(this->loopTip, instA->threeDimCoordinates);
-	std::cout << "distance " << this->arucoId << " to " << instA->arucoId << " " << distance << std::endl;
+	//std::cout << "distance " << this->arucoId << " to " << instA->arucoId << " " << distance << std::endl;
 	if (distance < 0.05) 
 	{
 		return true;
@@ -102,6 +113,18 @@ bool Instrument::madeContact(Instrument* instA)
 		std::cout << "Is disengaged True" << endl;
 		instA->hasDisengaged = true;
 	}
+	return false;
+}
+
+bool Instrument::stowContact(Instrument* instA)
+{
+	double distance = euclideanDistToInst(this->threeDimCoordinates, instA->threeDimCoordinates);
+	
+	if (distance < 0.05)
+	{
+		return true;
+	}
+
 	return false;
 }
 

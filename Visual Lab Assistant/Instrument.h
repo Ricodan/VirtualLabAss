@@ -23,13 +23,16 @@ public:
 		LOOP = 0,
 		EPENDORPH = 1,
 		BURNER = 2,
-		PETRI = 3
+		PETRI = 3,
+		STOW = 4
 	};
 	instrType iType;
 
 
 	void react(Instrument* target, Protocol protocol);
+	void stowPointReact(Instrument* target, Protocol protocol);
 	bool madeContact(Instrument* instA);
+	bool stowContact(Instrument* instA);
 	void assignType(int id);
 	void createPointOfLoop();
 
