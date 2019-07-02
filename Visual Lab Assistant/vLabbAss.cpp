@@ -282,7 +282,7 @@ void checkProximity(map<int, instrumentData*>* instrumentsMap, Protocol& protoco
 		//As long as the instrument is neither a loop nor a location
 		if(inst.first != 0 && inst.first != 11)
 		{
-			target = inst.second; //This will contain instrument info, but not the key
+			target = inst.second; 
 		
 			if (loop->instrument->madeContact(target->instrument)) 
 			{
